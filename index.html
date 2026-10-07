@@ -74,7 +74,12 @@
         </summary>
         <div class="filter">
           <div class="filter-head">
-            <span class="filter-label">Baujahr</span>
+            <span class="filter-label">Baujahr
+              <button class="play-btn" id="play" type="button" aria-pressed="false" title="Zeitleiste abspielen">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path class="i-play" d="M7.5 5.8v8.4l6.6-4.2z" /><path class="i-pause" d="M7.5 6v8M12.5 6v8" /></svg>
+                <span>Abspielen</span>
+              </button>
+            </span>
             <output class="filter-value" id="year-output" for="year-from year-to"></output>
           </div>
           <div class="histogram" id="histogram" role="group" aria-label="Bauten je fünf Jahre, Klick wählt den Zeitraum"></div>
@@ -90,7 +95,10 @@
       </details>
 
       <div class="result">
-        <span id="result"></span>
+        <div class="view-tabs" id="view-tabs" role="group" aria-label="Verzeichnis ordnen">
+          <button type="button" id="tab-buildings" data-view="buildings" aria-pressed="true"><b id="count-buildings"></b> <span id="label-buildings">Bauten</span></button>
+          <button type="button" id="tab-cities" data-view="cities" aria-pressed="false"><b id="count-cities"></b> <span id="label-cities">Städte</span></button>
+        </div>
         <button class="link-btn" id="filter-reset" type="button" hidden>Filter zurücksetzen</button>
       </div>
 
@@ -119,6 +127,9 @@
         <img class="card-photo" alt="" decoding="async">
         <div class="card-progress" id="card-progress"></div>
         <span class="card-year" id="card-year"></span>
+        <button class="card-zoom" id="card-zoom" type="button" aria-label="Fotos groß anzeigen" title="Fotos groß anzeigen">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12 4h4v4M8 16H4v-4M16 4l-5 5M4 16l5-5" /></svg>
+        </button>
       </figure>
       <div class="card-body">
         <p class="card-kicker"><span class="card-dot" id="card-dot"></span><span id="card-kicker"></span></p>
@@ -150,7 +161,53 @@
     <button class="icon-btn" id="reset-view" type="button" title="Ganze Welt zeigen">
       <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5" /><path d="M3.5 10h13M10 3.5c-2.2 2.4-2.2 10.6 0 13M10 3.5c2.2 2.4 2.2 10.6 0 13" /></svg>
     </button>
+    <span class="controls-sep" aria-hidden="true"></span>
+    <button class="icon-btn toggle-btn" id="orbit" type="button" aria-pressed="true" title="Rundflug um das Gebäude">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><ellipse cx="10" cy="11.5" rx="7" ry="3.2" /><path d="M10 11.5V4.5M7.6 6.2 10 4.5l2.4 1.7" /></svg>
+    </button>
+    <button class="icon-btn" id="share" type="button" title="Link zu dieser Ansicht teilen">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8.5 11.5a3 3 0 0 0 4.2 0l2.6-2.6a3 3 0 0 0-4.2-4.2l-1 1" /><path d="M11.5 8.5a3 3 0 0 0-4.2 0l-2.6 2.6a3 3 0 0 0 4.2 4.2l1-1" /></svg>
+    </button>
   </div>
+
+  <div class="play-year" id="play-year" aria-hidden="true">
+    <b id="play-year-value"></b>
+    <span id="play-year-count"></span>
+  </div>
+
+  <div class="notice" id="notice" role="alert" hidden>
+    <svg class="notice-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="7.5" /><path d="M10 6.2v4.6M10 13.7v.1" /></svg>
+    <p class="notice-body"><strong id="notice-title"></strong> <span id="notice-text"></span></p>
+    <button class="notice-action" id="notice-action" type="button" hidden></button>
+    <button class="icon-btn notice-close" id="notice-close" type="button" title="Hinweis schließen">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 6l8 8M14 6l-8 8" /></svg>
+    </button>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <dialog class="lightbox" id="lightbox" aria-labelledby="lb-title">
+    <header class="lb-bar">
+      <div class="lb-head">
+        <p class="lb-kicker" id="lb-kicker"></p>
+        <h2 class="lb-title" id="lb-title"></h2>
+      </div>
+      <span class="lb-count" id="lb-count"></span>
+      <button class="icon-btn lb-close" id="lb-close" type="button" title="Schließen (Esc)" autofocus>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+      </button>
+    </header>
+    <div class="lb-stage" id="lb-stage">
+      <img class="lb-photo" id="lb-photo" alt="" decoding="async" draggable="false">
+    </div>
+    <button class="lb-nav lb-prev" id="lb-prev" type="button" title="Vorheriges Foto (←)">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" /></svg>
+    </button>
+    <button class="lb-nav lb-next" id="lb-next" type="button" title="Nächstes Foto (→)">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5 13 10l-5.5 5.5" /></svg>
+    </button>
+    <p class="lb-credit" id="lb-credit"></p>
+  </dialog>
 
   <noscript><p class="noscript">Für die Karte wird JavaScript benötigt.</p></noscript>
 </body>

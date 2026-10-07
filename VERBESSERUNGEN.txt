@@ -1,5 +1,6 @@
 FORMATLAS – MÖGLICHE VERBESSERUNGEN UND FEATURES
-Stand: 7. Oktober 2026
+Stand: 8. Oktober 2026
+Live: https://ohnosorryplssorryno.github.io/architecture-map/
 
 Bewertung
   W = Wichtigkeit         1 = nettes Extra       10 = unverzichtbar
@@ -12,38 +13,24 @@ Sortiert nach Priorität. Die Bereiche stehen in eckigen Klammern:
   [Tech]   Technik und Wartung
 
 
+ERLEDIGT (8. Oktober 2026)
+  [Ux]      Filter, gewählter Bau und Kartenausschnitt im Link, Knopf „Teilen“
+  [Tech]    Hinweise bei Ladeproblemen (Kartenhintergrund, Bibliothek, WebGL, offline)
+  [Inhalt]  Datenprüfung im Build und als GitHub Action (tools/check-data.mjs)
+  [Ux]      Zeitleiste abspielen
+  [Ux]      Große Fotoansicht mit Wischen und Pfeiltasten
+  [Ux]      Städte-Übersicht im Verzeichnis
+  [Ux]      Langsamer Rundflug nach der Landung (abschaltbar)
+
+ERLEDIGT (7. Oktober 2026, mit dem Livegang auf GitHub Pages)
+  [Recht]   Impressum und Datenschutzerklärung (Impressum-Platzhalter noch ausfüllen!)
+  [Recht]   Schriften lokal statt über Google Fonts
+  [Tech]    MapLibre mitgeliefert statt vom CDN
+  [Reich]   Vorschau für soziale Netzwerke (Open Graph, assets/og-image.png)
+
+
   P   W   E   Bereich   Maßnahme
  ---  --  --  --------  -------------------------------------------------------------
-  80  10   8  [Recht]   Impressum und Datenschutzerklärung
-                        In Deutschland für eine öffentliche Seite praktisch Pflicht.
-                        Die Seite lädt Inhalte von Drittanbietern (jsDelivr, OpenFreeMap,
-                        Wikimedia, Google Fonts), dabei werden IP-Adressen übertragen.
-
-  72   8   9  [Recht]   Schriften lokal ausliefern statt über Google Fonts
-                        Vermeidet die Übertragung der IP an Google (LG München, 2022)
-                        und spart eine DNS-Abfrage. woff2-Dateien von Syne und
-                        Instrument Sans ins Projekt legen, @font-face anpassen.
-
-  54   6   9  [Reich]   Vorschau für soziale Netzwerke
-                        Open-Graph- und Twitter-Meta-Tags mit Vorschaubild, damit
-                        geteilte Links eine schöne Karte zeigen.
-
-  48   6   8  [Ux]      Filter und Ansicht in der URL
-                        Architekt, Zeitraum, Typ und Kartenausschnitt im Link speichern,
-                        damit sich gefilterte Ansichten teilen lassen.
-
-  48   6   8  [Tech]    Fehlermeldung, wenn Karte oder Bibliothek nicht laden
-                        Statt eines schwarzen Globus ein klarer Hinweis mit
-                        „Erneut versuchen“, Liste und Suche bleiben nutzbar.
-
-  48   6   8  [Inhalt]  Datenprüfung im Build
-                        Automatische Checks: Koordinaten im richtigen Land,
-                        doppelte Fotos, fehlende Felder, unbekannte Gebäudetypen.
-
-  45   5   9  [Tech]    MapLibre mitliefern statt vom CDN laden
-                        Unabhängig von jsDelivr, ein Drittanbieter weniger im
-                        Datenschutzhinweis.
-
   42   7   6  [Reich]   Barrierefreiheit
                         Tastatursteuerung durch die Bauten auf der Karte, Ansagen für
                         Screenreader bei Auswahl, Kontrastprüfung der Architektenfarben,
@@ -59,16 +46,8 @@ Sortiert nach Priorität. Die Bereiche stehen in eckigen Klammern:
                         Peter Zumthor. Die Datenpipeline steht, Aufwand sind vor allem
                         Auswahl, Texte und Fotodurchsicht.
 
-  42   6   7  [Ux]      Zeitleiste abspielen
-                        Play-Knopf am Histogramm: Die Bauten erscheinen Jahr für Jahr
-                        auf dem Globus, von Gaudí bis heute.
-
   42   6   7  [Ux]      „In meiner Nähe“
                         Standort freigeben, die nächsten Bauten mit Entfernung anzeigen.
-
-  42   6   7  [Ux]      Große Fotoansicht
-                        Klick auf das Foto öffnet eine Galerie in voller Größe,
-                        mit Wischen am Handy.
 
   42   6   7  [Inhalt]  Architektenprofile
                         Klick auf einen Architekten öffnet ein Kurzporträt: Lebensdaten,
@@ -77,14 +56,6 @@ Sortiert nach Priorität. Die Bereiche stehen in eckigen Klammern:
   40   8   5  [Inhalt]  Fakten prüfen
                         Jahreszahlen und Kurztexte der 216 Bauten mit Quellen
                         gegenprüfen, Quellenlink pro Bau ergänzen.
-
-  40   5   8  [Ux]      Städte-Übersicht
-                        Liste der Städte mit den meisten Bauten (Barcelona, Chicago,
-                        London, Paris …), ein Klick fliegt hin.
-
-  36   4   9  [Ux]      Langsamer Rundflug nach der Landung
-                        Die Kamera kreist nach dem Hinflug langsam um das Gebäude,
-                        endet bei Interaktion, abschaltbar.
 
   35   7   5  [Reich]   Englische Version
                         Texte und Oberfläche zweisprachig, Sprachumschalter.
@@ -168,9 +139,7 @@ Sortiert nach Priorität. Die Bereiche stehen in eckigen Klammern:
 
 
 EMPFEHLUNG FÜR DIE NÄCHSTEN SCHRITTE
-  Vor dem Livegang:   Impressum und Datenschutz, Schriften lokal, MapLibre lokal,
-                      Fehlermeldung bei Ladeproblemen, Social-Vorschau.
-  Danach zuerst:      Filter in der URL, Datenprüfung, Städte-Übersicht,
-                      große Fotoansicht, Zeitleiste abspielen.
+  Als Nächstes:       Impressum-Platzhalter ausfüllen, Barrierefreiheit,
+                      Architektenprofile, „In meiner Nähe“, Fakten prüfen.
   Größere Vorhaben:   Englische Version, Seiten pro Bau für Suchmaschinen,
                       weitere Architekten.

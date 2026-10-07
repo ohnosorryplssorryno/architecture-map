@@ -1,29 +1,66 @@
 (() => {
   'use strict';
 
-  const { architects, buildings } = window.FORMATLAS_DATA;
   const $ = (id) => document.getElementById(id);
+
+  /* ---------------- Hinweise bei Ladeproblemen ---------------- */
+
+  const noticeEl = $('notice');
+  const notice = {
+    kind: null,
+    action: null,
+    // fatal: Die Karte fehlt ganz, der Hinweis steht groß in der Kartenfläche und bleibt
+    show(kind, { title, text, fatal = false, action = null }) {
+      if (!fatal && !noticeEl.hidden && noticeEl.classList.contains('is-fatal')) return;
+      notice.kind = kind;
+      notice.action = action;
+      $('notice-title').textContent = title;
+      $('notice-text').textContent = text;
+      $('notice-action').hidden = !action;
+      if (action) $('notice-action').textContent = action.label;
+      $('notice-close').hidden = fatal;
+      noticeEl.classList.toggle('is-fatal', fatal);
+      noticeEl.hidden = false;
+    },
+    hide(kind) {
+      if (kind && notice.kind !== kind) return;
+      notice.kind = null;
+      noticeEl.hidden = true;
+    },
+  };
+  $('notice-action').addEventListener('click', () => notice.action?.run());
+  $('notice-close').addEventListener('click', () => notice.hide());
+  const reloadPage = { label: 'Erneut versuchen', run: () => location.reload() };
+
+  const DATA = window.FORMATLAS_DATA;
+  if (!DATA) {
+    document.body.classList.add('no-map', 'no-data');
+    notice.show('data', {
+      title: 'Die Daten konnten nicht geladen werden.',
+      text: 'Bitte prüfe die Internetverbindung und lade die Seite neu.',
+      fatal: true,
+      action: reloadPage,
+    });
+    return;
+  }
+
+  const { architects, buildings } = DATA;
   const NEUTRAL = '#e6e1d8'; // Cluster mit Bauten verschiedener Architekten
   const FID_OFFSET = 1e6; // Abstand zu den Cluster-IDs von MapLibre
   const EARTH = 40075016.686; // Erdumfang in Metern
   const CLOSE_ZOOM = 14; // ab hier verschwinden die Punkte, der Lichtschein bleibt
   const DOCK_ZOOM = 12.5; // ab hier sitzt die Infokarte am Rand statt über dem Punkt
+  const CITY_ZOOM = 13.2; // höchster Zoom beim Städteflug, die Punkte bleiben sichtbar
   const WORLD_CENTER = [20, 30];
   const SLIDE_MS = 2800; // Standzeit eines Fotos in der Vorschau
   const BIN = 5; // Jahre pro Balken im Histogramm
+  const PLAY_RATE = 9; // Jahre pro Sekunde beim Abspielen der Zeitleiste
+  const ORBIT_SPEED = 4; // Grad pro Sekunde beim Rundflug um ein Gebäude
   const THUMBS = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/';
+  const ORIGINALS = 'https://upload.wikimedia.org/wikipedia/commons/';
 
-  // Gebäudetypen für den Typfilter zusammengefasst
-  const GROUPS = [
-    { id: 'kultur', label: 'Kultur', types: ['Museum', 'Kultur', 'Konzerthaus', 'Galerie', 'Ausstellung', 'Pavillon', 'Wissenschaft', 'Park'] },
-    { id: 'sakral', label: 'Sakral', types: ['Kirche', 'Kloster', 'Synagoge'] },
-    { id: 'wohnen', label: 'Wohnen', types: ['Wohnen', 'Villa', 'Hotel'] },
-    { id: 'buero', label: 'Büro', types: ['Büro', 'Hochhaus', 'Industrie', 'Messe', 'Forschung', 'Handel'] },
-    { id: 'staat', label: 'Staat', types: ['Regierung', 'Parlament', 'Gericht', 'Verwaltung'] },
-    { id: 'bildung', label: 'Bildung', types: ['Bildung', 'Bibliothek'] },
-    { id: 'verkehr', label: 'Verkehr', types: ['Verkehr', 'Brücke', 'Flughafen', 'Bahnhof'] },
-    { id: 'sport', label: 'Sport', types: ['Sport', 'Stadion'] },
-  ];
+  // Gebäudetypen für den Typfilter (gepflegt in data/source.mjs)
+  const GROUPS = (DATA.groups || []).map((g) => ({ ...g }));
 
   const mqHover = matchMedia('(hover: hover) and (pointer: fine)');
   const mqNarrow = matchMedia('(max-width: 640px)');
@@ -33,15 +70,42 @@
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(v, hi));
   const rad = (d) => (d * Math.PI) / 180;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const fmtDeg = (v, pos, neg) =>
     `${Math.abs(v).toLocaleString('de-DE', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}° ${v >= 0 ? pos : neg}`;
   // Foto-Pfad aus Wikimedia Commons → Thumbnail-URL in Standardbreite
   const photoUrl = (path, width) => (path.startsWith('http') ? path : `${THUMBS}${path}/${width}px-${path.split('/').pop()}`);
+  const originalUrl = (path) => (path.startsWith('http') ? path : ORIGINALS + path);
+
+  // Einstellungen im Browser; ohne Speicherzugriff gelten die Vorgaben
+  const prefs = {
+    get(key, fallback) {
+      try {
+        const v = localStorage.getItem(`formatlas:${key}`);
+        return v == null ? fallback : JSON.parse(v);
+      } catch {
+        return fallback;
+      }
+    },
+    set(key, value) {
+      try { localStorage.setItem(`formatlas:${key}`, JSON.stringify(value)); } catch {}
+    },
+  };
+
+  let toastTimer = 0;
+  function toast(text) {
+    const el = $('toast');
+    el.textContent = text;
+    el.classList.add('is-visible');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('is-visible'), 2000);
+  }
 
   /* ---------------- Daten ---------------- */
 
   const archById = new Map(architects.map((a) => [a.id, a]));
   const groupOfType = new Map(GROUPS.flatMap((g) => g.types.map((t) => [t, g.id])));
+  const cityKey = (b) => `${b.city}|${b.country}`;
   buildings.forEach((b, i) => {
     const a = archById.get(b.architect);
     b.fid = FID_OFFSET + i;
@@ -77,11 +141,64 @@
     from: YEAR_MIN,
     to: YEAR_MAX,
     visible: buildings,
+    view: 'buildings', // Verzeichnis nach Bauten oder nach Städten
+    openCity: null, // aufgeklappte Stadt in der Städteansicht
+    hoverCity: null, // Stadtzeile unter dem Mauszeiger
     hoverFid: null, // Punkt unter dem Mauszeiger
     listFid: null, // Zeile unter dem Mauszeiger
     pinnedFid: null, // angeklickter Bau
     flying: false,
   };
+
+  /* ---------------- Ansicht im Link ----------------
+     ?a=zha,gehry  Architekten     ?t=kultur  Typgruppen    ?y=1990-2010  Baujahre
+     ?q=…  Suche    ?b=…  gewählter Bau    ?v=lat,lng,zoom,drehung,neigung  Kartenausschnitt */
+
+  // ready: erst schreiben, wenn der Zustand aus dem Link übernommen ist (Karte eingerichtet)
+  const link = { timer: 0, viewSet: false, ready: false };
+
+  function readLink() {
+    const p = new URLSearchParams(location.search);
+    const list = (k) => (p.get(k) || '').split(',').filter(Boolean);
+    for (const id of list('a')) if (archById.has(id)) state.architects.add(id);
+    for (const id of list('t')) if (GROUPS.some((g) => g.id === id)) state.groups.add(id);
+    const y = (p.get('y') || '').match(/^(\d{4})(?:-(\d{4}))?$/);
+    if (y) {
+      const a = clamp(+y[1], YEAR_MIN, YEAR_MAX), b = clamp(+(y[2] || y[1]), YEAR_MIN, YEAR_MAX);
+      state.from = Math.min(a, b);
+      state.to = Math.max(a, b);
+    }
+    if (p.get('q')) state.query = p.get('q');
+    const v = (p.get('v') || '').split(',').map(Number);
+    const view =
+      v.length >= 3 && v.every(Number.isFinite) && Math.abs(v[0]) <= 90 && Math.abs(v[1]) <= 180
+        ? { center: [v[1], v[0]], zoom: clamp(v[2], 0.4, 19), bearing: v[3] || 0, pitch: clamp(v[4] || 0, 0, 70) }
+        : null;
+    // ältere Links: #gebäude-id
+    const legacy = location.hash.length > 1 ? decodeURIComponent(location.hash.slice(1)) : '';
+    return { view, building: byId.get(p.get('b') || legacy) || null };
+  }
+
+  function writeLink(now = false) {
+    clearTimeout(link.timer);
+    if (!now) { link.timer = setTimeout(() => writeLink(true), 250); return; }
+    if (!link.ready || play.running) return;
+    const p = new URLSearchParams();
+    if (state.query.trim()) p.set('q', state.query.trim());
+    if (state.architects.size) p.set('a', architects.filter((a) => state.architects.has(a.id)).map((a) => a.id).join(','));
+    if (state.groups.size) p.set('t', GROUPS.filter((g) => state.groups.has(g.id)).map((g) => g.id).join(','));
+    if (state.from > YEAR_MIN || state.to < YEAR_MAX) p.set('y', state.from === state.to ? state.from : `${state.from}-${state.to}`);
+    const b = state.pinnedFid != null && byFid.get(state.pinnedFid);
+    if (b) p.set('b', b.id);
+    if (map && link.viewSet) {
+      const c = map.getCenter();
+      const v = [c.lat.toFixed(5), c.lng.toFixed(5), map.getZoom().toFixed(2), Math.round(map.getBearing()), Math.round(map.getPitch())];
+      p.set('v', v.join(',').replace(/(,0)+$/, ''));
+    }
+    const qs = p.toString().replace(/%2C/g, ',');
+    const next = location.pathname + (qs ? `?${qs}` : '');
+    if (next !== location.pathname + location.search + location.hash) history.replaceState(null, '', next);
+  }
 
   /* ---------------- Verzeichnis ---------------- */
 
@@ -98,8 +215,6 @@
     el.min = YEAR_MIN;
     el.max = YEAR_MAX;
   }
-  fromEl.value = YEAR_MIN;
-  toEl.value = YEAR_MAX;
 
   // Filterprüfung; `skip` lässt einen Filter weg (für die Zähler dieses Filters)
   function passes(b, skip) {
@@ -156,6 +271,8 @@
     hist.style.setProperty('--n', bins);
     $('range').style.setProperty('--a', (state.from - YEAR_MIN) / span);
     $('range').style.setProperty('--b', (state.to - YEAR_MIN) / span);
+    fromEl.value = state.from;
+    toEl.value = state.to;
     $('year-output').textContent = state.from === state.to ? String(state.from) : `${state.from} – ${state.to}`;
     // Liegen beide Regler übereinander, den greifbar machen, der sich bewegen kann
     fromEl.style.zIndex = state.from === state.to && state.from > (YEAR_MIN + YEAR_MAX) / 2 ? 2 : 1;
@@ -178,17 +295,27 @@
 
   function renderResult() {
     const n = state.visible.length;
+    const cities = new Set(state.visible.map(cityKey)).size;
     const countries = new Set(state.visible.map((b) => b.country)).size;
-    $('result').textContent = n
-      ? `${n} ${n === 1 ? 'Bau' : 'Bauten'} · ${countries} ${countries === 1 ? 'Land' : 'Länder'}`
-      : 'Keine Treffer';
+    $('count-buildings').textContent = n;
+    $('label-buildings').textContent = n === 1 ? 'Bau' : 'Bauten';
+    $('count-cities').textContent = cities;
+    $('label-cities').textContent = cities === 1 ? 'Stadt' : 'Städte';
+    $('tab-cities').title = `${cities} ${cities === 1 ? 'Stadt' : 'Städte'} in ${countries} ${countries === 1 ? 'Land' : 'Ländern'}`;
   }
 
-  function renderIndex() {
-    if (!state.visible.length) {
-      indexEl.innerHTML = '<p class="empty">Kein Bau passt zu Suche und Filtern.</p>';
-      return;
-    }
+  const rowHtml = (b) => {
+    const thumb = b.ph[0]
+      ? `<img class="row-thumb" src="${esc(photoUrl(b.ph[0][0], 120))}" alt="" width="44" height="44" loading="lazy" decoding="async">`
+      : '<span class="row-thumb is-empty"></span>';
+    return `<li><button class="row${b.fid === state.pinnedFid ? ' is-active' : ''}" type="button" data-fid="${b.fid}" style="--c:${b.color}">
+      ${thumb}
+      <span class="row-text"><span class="row-name">${esc(b.name)}</span>
+      <span class="row-place"><i></i>${esc(archById.get(b.architect).short)} · ${esc(b.city)}</span></span>
+      <span class="row-year">${b.year}</span></button></li>`;
+  };
+
+  function buildingsHtml() {
     const decades = new Map();
     for (const b of state.visible) {
       const d = Math.floor(b.year / 10) * 10;
@@ -198,19 +325,50 @@
     let html = '';
     for (const [d, list] of decades) {
       html += `<section><h3 class="decade"><span>${d}er</span><span>${list.length}</span></h3><ul class="rows">`;
-      for (const b of list) {
-        const thumb = b.ph[0]
-          ? `<img class="row-thumb" src="${esc(photoUrl(b.ph[0][0], 120))}" alt="" width="44" height="44" loading="lazy" decoding="async">`
-          : '<span class="row-thumb is-empty"></span>';
-        html += `<li><button class="row${b.fid === state.pinnedFid ? ' is-active' : ''}" type="button" data-fid="${b.fid}" style="--c:${b.color}">
-          ${thumb}
-          <span class="row-text"><span class="row-name">${esc(b.name)}</span>
-          <span class="row-place"><i></i>${esc(archById.get(b.architect).short)} · ${esc(b.city)}</span></span>
-          <span class="row-year">${b.year}</span></button></li>`;
-      }
+      html += list.map(rowHtml).join('');
       html += '</ul></section>';
     }
-    indexEl.innerHTML = html;
+    return html;
+  }
+
+  // Städte nach Anzahl der Bauten unter den aktuellen Filtern
+  function cityGroups() {
+    const cities = new Map();
+    for (const b of state.visible) {
+      const key = cityKey(b);
+      if (!cities.has(key)) cities.set(key, { key, city: b.city, country: b.country, list: [] });
+      cities.get(key).list.push(b);
+    }
+    return [...cities.values()].sort((a, b) => b.list.length - a.list.length || a.city.localeCompare(b.city, 'de'));
+  }
+
+  function citiesHtml() {
+    let html = '<ul class="cities">';
+    for (const c of cityGroups()) {
+      const open = c.key === state.openCity;
+      const archs = [...new Set(c.list.map((b) => b.architect))].map((id) => archById.get(id));
+      const photo = c.list.find((b) => b.ph[0])?.ph[0];
+      const thumb = photo
+        ? `<img class="row-thumb" src="${esc(photoUrl(photo[0], 120))}" alt="" width="44" height="44" loading="lazy" decoding="async">`
+        : '<span class="row-thumb is-empty"></span>';
+      html += `<li class="city${open ? ' is-open' : ''}">
+        <button class="city-row" type="button" data-city="${esc(c.key)}" aria-expanded="${open}" style="--c:${archs[0].color}">
+          ${thumb}
+          <span class="row-text"><span class="row-name">${esc(c.city)}</span>
+          <span class="row-place">${archs.map((a) => `<i style="--c:${a.color}"></i>`).join('')}${esc(c.country)} · ${esc(archs.map((a) => a.short).join(', '))}</span></span>
+          <span class="city-count">${c.list.length}</span>
+          <svg class="city-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" /></svg>
+        </button>`;
+      if (open) html += `<ul class="rows">${c.list.map(rowHtml).join('')}</ul>`;
+      html += '</li>';
+    }
+    return `${html}</ul>`;
+  }
+
+  function renderIndex() {
+    indexEl.innerHTML = !state.visible.length
+      ? '<p class="empty">Kein Bau passt zu Suche und Filtern.</p>'
+      : state.view === 'cities' ? citiesHtml() : buildingsHtml();
   }
 
   function markRow(fid) {
@@ -222,6 +380,17 @@
     if (!panel.classList.contains('is-collapsed')) row.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
   }
 
+  function setView(view) {
+    if (state.view === view) return;
+    state.view = view;
+    for (const tab of document.querySelectorAll('#view-tabs [data-view]')) tab.setAttribute('aria-pressed', String(tab.dataset.view === view));
+    const b = state.pinnedFid != null && byFid.get(state.pinnedFid);
+    if (view === 'cities' && b) state.openCity = cityKey(b);
+    renderIndex();
+    indexEl.scrollTop = 0;
+    markRow(state.pinnedFid);
+  }
+
   function applyFilter() {
     state.terms = normalize(state.query.trim()).split(/\s+/).filter(Boolean);
     state.visible = buildings.filter((b) => passes(b));
@@ -231,6 +400,7 @@
     renderResult();
     renderIndex();
     if (state.pinnedFid != null && !state.visible.some((b) => b.fid === state.pinnedFid)) deselect();
+    writeLink();
   }
 
   // animate = false: Kartenabstand nicht sofort anpassen (der folgende Flug übernimmt das)
@@ -257,6 +427,7 @@
   /* ---------------- Karte ---------------- */
 
   let map = null;
+  let initial = { view: null, building: null };
 
   const toGeoJSON = (list) => ({
     type: 'FeatureCollection',
@@ -273,25 +444,35 @@
   const fadeOutAt = (from, to) => ['interpolate', ['linear'], ['zoom'], CLOSE_ZOOM - 0.6, from, CLOSE_ZOOM + 0.2, to];
 
   function initMap() {
+    if (typeof maplibregl === 'undefined') { mapFailed('library'); return; }
     const startZoom = worldZoom();
-    map = new maplibregl.Map({
-      container: 'map',
-      style: window.formatlasStyle(),
-      center: WORLD_CENTER,
-      zoom: reduceMotion ? startZoom : startZoom - 0.45,
-      bearing: reduceMotion ? 0 : -12,
-      minZoom: 0.4,
-      maxZoom: 19,
-      maxPitch: 70,
-      attributionControl: { compact: true },
-      fadeDuration: 180,
-      // Drehen mit rechter Maustaste: 70 % langsamer als der Standard (0,8 °/px)
-      rotateDegreesPerPixelMoved: 0.24,
-      aroundCenter: false,
-    });
+    const view = initial.view;
+    try {
+      map = new maplibregl.Map({
+        container: 'map',
+        style: window.formatlasStyle(),
+        center: view ? view.center : WORLD_CENTER,
+        zoom: view ? view.zoom : reduceMotion ? startZoom : startZoom - 0.45,
+        bearing: view ? view.bearing : reduceMotion ? 0 : -12,
+        pitch: view ? view.pitch : 0,
+        minZoom: 0.4,
+        maxZoom: 19,
+        maxPitch: 70,
+        attributionControl: { compact: true },
+        fadeDuration: 180,
+        // Drehen mit rechter Maustaste: 70 % langsamer als der Standard (0,8 °/px)
+        rotateDegreesPerPixelMoved: 0.24,
+        aroundCenter: false,
+      });
+    } catch (err) {
+      mapFailed(/webgl/i.test(err?.message) ? 'webgl' : 'library', err);
+      return;
+    }
     map.setPadding(panelPadding());
+    link.viewSet = !!view;
 
-    map.on('load', () => {
+    // style.load statt load: load wartet auf alle Kacheln, bei Zoom 16 in einer Großstadt dauert das
+    map.once('style.load', () => {
       map.addSource('b', {
         type: 'geojson',
         data: toGeoJSON(state.visible),
@@ -369,21 +550,95 @@
           'circle-radius-transition': { duration: 220 },
         },
       });
+      syncActive();
 
-      if (!reduceMotion) map.easeTo({ zoom: startZoom, bearing: 0, duration: 2200, easing: easeOut });
+      if (!view && !reduceMotion) map.easeTo({ zoom: startZoom, bearing: 0, duration: 2200, easing: easeOut });
 
-      const fromHash = byId.get(decodeURIComponent(location.hash.slice(1)));
-      if (fromHash) select(fromHash);
+      // Bau aus dem Link: mit Kartenausschnitt direkt zeigen, sonst hinfliegen
+      link.ready = true;
+      writeLink();
+      const b = initial.building;
+      if (b && state.visible.includes(b)) {
+        if (view) pin(b);
+        else select(b);
+      }
     });
 
+    watchBasemap();
     bindMapEvents();
   }
+
+  // Ohne Karte bleiben Verzeichnis, Suche, Filter und Infokarten nutzbar
+  function mapFailed(kind, err) {
+    if (err) console.error(err);
+    map = null;
+    link.ready = true;
+    writeLink();
+    document.body.classList.add('no-map');
+    const where = mqNarrow.matches ? 'oben' : 'links';
+    notice.show(kind, {
+      fatal: true,
+      action: reloadPage,
+      ...(kind === 'webgl'
+        ? {
+            title: 'Dein Browser kann die 3D-Karte nicht darstellen.',
+            text: `WebGL ist nicht verfügbar, meist weil die Hardwarebeschleunigung ausgeschaltet ist. Das Verzeichnis ${where} funktioniert trotzdem.`,
+          }
+        : {
+            title: 'Die Karte konnte nicht geladen werden.',
+            text: `Vermutlich hakt die Verbindung. Das Verzeichnis ${where} funktioniert trotzdem.`,
+          }),
+    });
+    if (mqNarrow.matches) setPanelOpen(true, false);
+  }
+
+  // Kartenhintergrund (OpenFreeMap) beobachten: Fällt er aus, bleiben die Bauten sichtbar
+  function watchBasemap() {
+    let errors = 0;
+    const retry = () => {
+      errors = 0;
+      notice.hide('tiles');
+      const src = map.getSource('omt');
+      src?.setUrl?.(src.url); // lädt TileJSON und alle Kacheln neu
+    };
+    map.on('error', (e) => {
+      if (e.sourceId === 'b') { console.error(e.error); return; }
+      errors++;
+      // Fehlt die Kachelbeschreibung (TileJSON, ohne e.tile), sofort melden; einzelne Kacheln erst ab dem dritten Fehler
+      const fatal = e.sourceId === 'omt' && !e.tile;
+      if ((!fatal && errors < 3) || notice.kind === 'tiles') return;
+      notice.show('tiles', {
+        title: 'Der Kartenhintergrund lädt gerade nicht.',
+        text: navigator.onLine ? 'Die Bauten bleiben sichtbar.' : 'Keine Internetverbindung. Die Bauten bleiben sichtbar.',
+        action: { label: 'Erneut versuchen', run: retry },
+      });
+    });
+    map.on('data', (e) => {
+      if (e.sourceId === 'omt' && e.tile && errors) {
+        errors = 0;
+        notice.hide('tiles');
+      }
+    });
+    map.on('webglcontextlost', () =>
+      notice.show('context', { title: 'Die Kartengrafik wurde zurückgesetzt.', text: 'Bleibt die Karte leer, hilft Neuladen.', action: reloadPage })
+    );
+    map.on('webglcontextrestored', () => notice.hide('context'));
+    addEventListener('online', () => {
+      notice.hide('offline');
+      retry();
+    });
+  }
+
+  addEventListener('offline', () =>
+    notice.show('offline', { title: 'Keine Internetverbindung.', text: 'Karte und Fotos laden weiter, sobald du wieder online bist.' })
+  );
 
   /* Hervorhebung über Feature-State, ohne Neuberechnung der Quelle */
   const activeFids = new Set();
   function syncActive() {
     if (!map?.getSource('b')) return;
     const next = new Set([state.hoverFid, state.listFid, state.pinnedFid].filter((v) => v != null));
+    if (state.hoverCity) for (const b of state.visible) if (cityKey(b) === state.hoverCity) next.add(b.fid);
     for (const fid of activeFids) if (!next.has(fid)) map.setFeatureState({ source: 'b', id: fid }, { active: false });
     for (const fid of next) if (!activeFids.has(fid)) map.setFeatureState({ source: 'b', id: fid }, { active: true });
     activeFids.clear();
@@ -420,8 +675,15 @@
     wiki.hidden = !b.wiki;
     if (b.wiki) wiki.href = b.wiki;
     $('card-route').href = `https://www.google.com/maps/search/?api=1&query=${b.lat},${b.lng}`;
+    $('card-zoom').hidden = !b.ph.length;
     setSlides(b);
   }
+
+  // Bildnachweis: Urheber mit Link zur Datei auf Commons, Lizenz
+  const creditHtml = (p, i, n) =>
+    `Foto${n > 1 ? ` ${i + 1}/${n}` : ''}: ` +
+    `<a href="https://commons.wikimedia.org/wiki/File:${esc(p[0].split('/').pop())}" target="_blank" rel="noopener">${esc(p[1] || 'Wikimedia Commons')}</a>` +
+    (p[2] ? ` · ${esc(p[2])}` : '');
 
   /* Fotokarussell: Überblenden mit leichtem Zoom, Fortschrittsbalken oben */
 
@@ -460,17 +722,13 @@
       el.className = k < i ? 'is-done' : k === i ? 'is-active' : '';
     });
     const p = slides.list[i];
-    $('card-credit').innerHTML = p
-      ? `Foto${slides.list.length > 1 ? ` ${i + 1}/${slides.list.length}` : ''}: ` +
-        `<a href="https://commons.wikimedia.org/wiki/File:${esc(p[0].split('/').pop())}" target="_blank" rel="noopener">${esc(p[1] || 'Wikimedia Commons')}</a>` +
-        (p[2] ? ` · ${esc(p[2])}` : '')
-      : 'Für diesen Bau gibt es kein frei lizenziertes Foto.';
+    $('card-credit').innerHTML = p ? creditHtml(p, i, slides.list.length) : 'Für diesen Bau gibt es kein frei lizenziertes Foto.';
     scheduleSlide();
   }
 
   function scheduleSlide() {
     clearTimeout(slides.timer);
-    slides.running = !reduceMotion && slides.list.length > 1 && !!cardState.anchor;
+    slides.running = !reduceMotion && slides.list.length > 1 && !!cardState.anchor && !lightbox.open;
     if (!slides.running) return;
     slides.timer = setTimeout(() => {
       // nächstes ladbares Foto; wartet, bis es geladen ist
@@ -482,7 +740,7 @@
       if (next === slides.index) return;
       const img = photoEls[next];
       if (img.complete && img.naturalWidth) showSlide(next);
-      else img.addEventListener('load', () => { if (cardState.anchor && slides.list[next]) showSlide(next); }, { once: true });
+      else img.addEventListener('load', () => { if (cardState.anchor && slides.list[next] && !lightbox.open) showSlide(next); }, { once: true });
     }, SLIDE_MS);
   }
 
@@ -490,9 +748,11 @@
     const btn = e.target.closest('button');
     if (btn) showSlide(Number(btn.dataset.i));
   });
+  // Klick aufs Foto der angehefteten Karte öffnet die große Ansicht
   $('card-media').addEventListener('click', (e) => {
-    if (e.target.closest('#card-progress') || slides.list.length < 2) return;
-    showSlide((slides.index + 1) % slides.list.length);
+    if (e.target.closest('#card-progress') || !card.classList.contains('is-pinned')) return;
+    const b = byFid.get(cardState.fid);
+    if (b?.ph.length) openLightbox(b, slides.index);
   });
 
   // anchor: { row } neben der Listenzeile, { near } über dem Punkt, { dock } am Kartenrand mit Linie
@@ -591,6 +851,103 @@
     $('tether-end').setAttribute('cy', ey);
   }
 
+  /* ---------------- Große Fotoansicht ---------------- */
+
+  const lightbox = $('lightbox');
+  const lbImg = $('lb-photo');
+  const lbStage = $('lb-stage');
+  const lb = { b: null, index: 0, token: 0, drag: null, swiped: false };
+  // Breite passend zum Bildschirm; ist das Original kleiner, liefert Commons einen Fehler → Original
+  const bigUrl = (path) => photoUrl(path, innerWidth * (devicePixelRatio || 1) > 1400 ? 1920 : 1280);
+
+  function openLightbox(b, index) {
+    lb.b = b;
+    clearTimeout(slides.timer);
+    slides.running = false;
+    $('lb-kicker').textContent = `${b.year} · ${archById.get(b.architect).short} · ${b.city}`;
+    $('lb-title').textContent = b.name;
+    lightbox.classList.toggle('is-single', b.ph.length < 2);
+    showPhoto(index, 0);
+    lightbox.showModal();
+  }
+
+  function showPhoto(index, dir) {
+    const b = lb.b, n = b.ph.length;
+    lb.index = (index + n) % n;
+    const p = b.ph[lb.index];
+    const token = ++lb.token;
+    // erst die kleine Vorschau (meist schon geladen), dann die große Fassung
+    lbImg.src = photoUrl(p[0], 500);
+    lbImg.alt = `${b.name}, Foto ${lb.index + 1} von ${n}`;
+    lbImg.classList.add('is-preview');
+    if (dir && !reduceMotion) {
+      lbImg.animate(
+        [{ opacity: 0, transform: `translateX(${dir * 48}px)` }, { opacity: 1, transform: 'none' }],
+        { duration: 340, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
+      );
+    }
+    const hi = new Image();
+    hi.decoding = 'async';
+    hi.onload = () => { if (token === lb.token) { lbImg.src = hi.src; lbImg.classList.remove('is-preview'); } };
+    hi.onerror = () => { if (token === lb.token && hi.src !== originalUrl(p[0])) hi.src = originalUrl(p[0]); };
+    hi.src = bigUrl(p[0]);
+    if (n > 1) preload(bigUrl(b.ph[(lb.index + 1) % n][0])); // nächstes Foto schon laden
+    $('lb-count').textContent = n > 1 ? `${lb.index + 1} / ${n}` : '';
+    $('lb-credit').innerHTML = creditHtml(p, lb.index, n) + ` · <a href="${esc(originalUrl(p[0]))}" target="_blank" rel="noopener">Original</a>`;
+  }
+
+  const stepPhoto = (dir) => { if (lb.b && lb.b.ph.length > 1) showPhoto(lb.index + dir, dir); };
+  $('lb-prev').addEventListener('click', () => stepPhoto(-1));
+  $('lb-next').addEventListener('click', () => stepPhoto(1));
+  $('lb-close').addEventListener('click', () => lightbox.close());
+  lightbox.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') { e.preventDefault(); stepPhoto(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); stepPhoto(1); }
+  });
+  lightbox.addEventListener('close', () => {
+    lb.token++;
+    // Vorschau in der Infokarte zeigt danach das zuletzt gesehene Foto
+    if (lb.b && cardState.fid === lb.b.fid && cardState.anchor) showSlide(lb.index);
+    lb.b = null;
+  });
+
+  // Klick neben das Foto schließt; liegt der Klick im Bildrahmen, zählt die sichtbare Bildfläche
+  function onPhoto(e) {
+    if (e.target !== lbImg || !lbImg.naturalWidth) return false;
+    const r = lbImg.getBoundingClientRect();
+    const scale = Math.min(r.width / lbImg.naturalWidth, r.height / lbImg.naturalHeight);
+    const w = lbImg.naturalWidth * scale, h = lbImg.naturalHeight * scale;
+    return Math.abs(e.clientX - (r.left + r.width / 2)) <= w / 2 && Math.abs(e.clientY - (r.top + r.height / 2)) <= h / 2;
+  }
+  lightbox.addEventListener('click', (e) => {
+    if (lb.swiped) { lb.swiped = false; return; }
+    if (e.target === lightbox || e.target === lbStage || (e.target === lbImg && !onPhoto(e))) lightbox.close();
+  });
+
+  // Wischen zum nächsten Foto (Touch, Stift und Maus)
+  lbStage.addEventListener('pointerdown', (e) => {
+    if (lb.b?.ph.length > 1 && e.button === 0) lb.drag = { id: e.pointerId, x: e.clientX, dx: 0 };
+  });
+  lbStage.addEventListener('pointermove', (e) => {
+    const d = lb.drag;
+    if (!d || e.pointerId !== d.id) return;
+    d.dx = e.clientX - d.x;
+    if (Math.abs(d.dx) < 8) return;
+    lbImg.style.transform = `translateX(${d.dx}px)`;
+    lbImg.style.opacity = String(1 - Math.min(Math.abs(d.dx) / 500, 0.5));
+  });
+  const endDrag = (e) => {
+    const d = lb.drag;
+    if (!d || e.pointerId !== d.id) return;
+    lb.drag = null;
+    lbImg.style.transform = '';
+    lbImg.style.opacity = '';
+    lb.swiped = Math.abs(d.dx) >= 8;
+    if (e.type === 'pointerup' && Math.abs(d.dx) > 60) stepPhoto(d.dx < 0 ? 1 : -1);
+  };
+  lbStage.addEventListener('pointerup', endDrag);
+  lbStage.addEventListener('pointercancel', endDrag);
+
   /* ---------------- Auswahl und Flug ---------------- */
 
   const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -605,23 +962,15 @@
     });
   }
 
-  // Wie bei Kartendiensten: herauszoomen, hinüberfliegen, hineinzoomen
-  async function flyToBuilding(b) {
+  // Wie bei Kartendiensten: herauszoomen, hinüberfliegen, hineinzoomen.
+  // onLand(token) läuft am Ende; ein Eingriff erhöht flightToken und bricht ab.
+  async function fly(end, onLand) {
     const token = ++flightToken;
     state.flying = true;
-    // Gebäude landet in der Mitte der freien Fläche zwischen Verzeichnis und Infokarte
-    const desktopOffset = [-(cardState.w || 304) / 2 - 24, 40];
-    const end = {
-      center: [b.lng, b.lat],
-      zoom: flyZoom(b),
-      pitch: 60,
-      bearing: -20,
-      padding: panelPadding(),
-      offset: mqNarrow.matches ? [0, -innerHeight * 0.18] : desktopOffset,
-    };
+    stopOrbit();
     if (reduceMotion) {
       map.jumpTo(end);
-      land(token);
+      onLand(token);
       return;
     }
 
@@ -642,26 +991,69 @@
       await cameraStep({ center: to, zoom: overview, pitch: 0, bearing: 0, duration: clamp(700 + Math.log10(km + 1) * 380, 900, 2300), easing: easeInOut });
       if (token !== flightToken) return;
     }
-    // 3. Hineinzoomen und in die Schrägansicht kippen
-    await cameraStep({ ...end, duration: clamp((end.zoom - map.getZoom()) * 280, 1200, 3200), easing: easeOut });
-    land(token);
+    // 3. Hineinzoomen und in die Endlage kippen
+    await cameraStep({ ...end, duration: clamp(Math.abs(end.zoom - map.getZoom()) * 280, 1200, 3200), easing: easeOut });
+    onLand(token);
+  }
+
+  function flyToBuilding(b) {
+    // Gebäude landet in der Mitte der freien Fläche zwischen Verzeichnis und Infokarte
+    const desktopOffset = [-(cardState.w || 304) / 2 - 24, 40];
+    fly(
+      {
+        center: [b.lng, b.lat],
+        zoom: flyZoom(b),
+        pitch: 60,
+        bearing: -20,
+        padding: panelPadding(),
+        offset: mqNarrow.matches ? [0, -innerHeight * 0.18] : desktopOffset,
+      },
+      land
+    );
   }
 
   function land(token) {
     if (token !== flightToken) return;
     state.flying = false;
-    if (state.pinnedFid != null) openCard(byFid.get(state.pinnedFid), cardAnchorFor(), true);
+    link.viewSet = true;
+    writeLink();
+    const b = state.pinnedFid != null && byFid.get(state.pinnedFid);
+    if (!b) return;
+    openCard(b, cardAnchorFor(), true);
+    startOrbit(b);
+  }
+
+  // Bau anheften, ohne die Kamera zu bewegen (Link mit Kartenausschnitt)
+  function pin(b) {
+    state.pinnedFid = b.fid;
+    syncActive();
+    markRow(b.fid);
+    preloadPhotos(b);
+    openCard(b, cardAnchorFor(), true);
+    writeLink();
   }
 
   function select(b) {
-    if (!map) return;
-    map.stop(); // laufende Animation beenden, bevor sich die Auswahl ändert
+    stopPlay();
     state.pinnedFid = b.fid;
     state.listFid = null;
+    state.hoverCity = null;
     syncActive();
+    if (state.view === 'cities' && state.openCity !== cityKey(b)) {
+      state.openCity = cityKey(b);
+      renderIndex();
+    }
     markRow(b.fid);
-    history.replaceState(null, '', `#${b.id}`);
     preloadPhotos(b);
+    writeLink();
+    if (!map) {
+      // ohne Karte: Infokarte neben der Listenzeile
+      const row = indexEl.querySelector(`.row[data-fid="${b.fid}"]`);
+      openCard(b, { row: row || panel }, true);
+      return;
+    }
+    stopOrbit(false);
+    map.stop(); // laufende Animation beenden, bevor sich die Auswahl ändert
     closeCard();
     // Auf schmalen Bildschirmen das Verzeichnis einklappen, damit neben der
     // angedockten Infokarte genug Platz für das Gebäude bleibt
@@ -672,12 +1064,148 @@
 
   function deselect() {
     if (state.pinnedFid == null) return;
+    stopOrbit();
     state.pinnedFid = null;
     syncActive();
     markRow(null);
     closeCard();
-    history.replaceState(null, '', location.pathname + location.search);
+    writeLink();
   }
+
+  function flyToCity(c) {
+    deselect();
+    stopPlay();
+    if (!map) return;
+    if (mqNarrow.matches) setPanelOpen(false, false);
+    const bounds = new maplibregl.LngLatBounds();
+    c.list.forEach((b) => bounds.extend([b.lng, b.lat]));
+    const cam = map.cameraForBounds(bounds, { padding: 90, maxZoom: CITY_ZOOM }) || {};
+    fly(
+      { center: cam.center || bounds.getCenter(), zoom: cam.zoom ?? CITY_ZOOM, pitch: 0, bearing: 0, padding: panelPadding() },
+      (token) => {
+        if (token !== flightToken) return;
+        state.flying = false;
+        link.viewSet = true;
+        writeLink();
+      }
+    );
+  }
+
+  function toggleCity(key) {
+    state.openCity = state.openCity === key ? null : key;
+    renderIndex();
+    markRow(state.pinnedFid);
+    if (!state.openCity) return;
+    indexEl.querySelector(`.city-row[data-city="${CSS.escape(key)}"]`)?.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    const c = cityGroups().find((g) => g.key === key);
+    if (c) flyToCity(c);
+  }
+
+  /* ---------------- Rundflug nach der Landung ---------------- */
+
+  // moving: Token des Abschnitts, der gerade dreht (0 = Kamera steht)
+  const orbit = { on: prefs.get('orbit', !reduceMotion), token: 0, timer: 0, active: false, moving: 0 };
+
+  function renderOrbitButton() {
+    const btn = $('orbit');
+    btn.setAttribute('aria-pressed', String(orbit.on));
+    btn.title = orbit.on ? 'Rundflug um das Gebäude ausschalten' : 'Rundflug um das Gebäude einschalten';
+  }
+
+  // Kreist langsam um das Gebäude; endet bei jeder Bedienung der Karte
+  function startOrbit(b, delay = 900) {
+    stopOrbit(false);
+    if (!orbit.on || !map) return;
+    const token = orbit.token;
+    orbit.timer = setTimeout(async () => {
+      if (token !== orbit.token || state.pinnedFid !== b.fid || state.flying) return;
+      orbit.active = true;
+      // in Abschnitten, denn easeTo dreht immer auf dem kürzesten Weg
+      while (token === orbit.token) {
+        orbit.moving = token;
+        await cameraStep({ bearing: map.getBearing() - 30, around: [b.lng, b.lat], duration: (30 / ORBIT_SPEED) * 1000, easing: (t) => t });
+        if (orbit.moving === token) orbit.moving = 0;
+      }
+    }, delay);
+  }
+
+  // halt = false: die Kamera nicht anhalten, z. B. bei mousedown, weil map.stop()
+  // sonst auch das beginnende Ziehen abbrechen würde
+  function stopOrbit(halt = true) {
+    clearTimeout(orbit.timer);
+    orbit.token++;
+    orbit.active = false;
+    if (halt && orbit.moving && map) map.stop();
+  }
+
+  $('orbit').addEventListener('click', () => {
+    orbit.on = !orbit.on;
+    prefs.set('orbit', orbit.on);
+    renderOrbitButton();
+    toast(orbit.on ? 'Rundflug an' : 'Rundflug aus');
+    const b = state.pinnedFid != null && byFid.get(state.pinnedFid);
+    if (orbit.on && b && !state.flying) startOrbit(b, 0);
+    else if (!orbit.on) stopOrbit();
+  });
+
+  /* ---------------- Zeitleiste abspielen ---------------- */
+
+  const play = { running: false, raf: 0, start: 0 };
+
+  function startPlay() {
+    if (play.running) return;
+    // Pausiert mitten in der Zeitleiste: dort weitermachen, sonst von vorn
+    const resume = state.from === YEAR_MIN && state.to < YEAR_MAX && state.to > YEAR_MIN;
+    deselect();
+    play.running = true;
+    play.start = performance.now() - (resume ? ((state.to - YEAR_MIN) / PLAY_RATE) * 1000 : 0);
+    renderPlay();
+    if (map && map.getZoom() > worldZoom() + 1.2) {
+      stopOrbit();
+      flightToken++;
+      state.flying = false;
+      // Breite wie beim Start: MapLibre zeichnet den Globus in hohen Breiten größer
+      map.flyTo({ center: [map.getCenter().lng, WORLD_CENTER[1]], zoom: worldZoom(), pitch: 0, bearing: 0, padding: panelPadding(), duration: reduceMotion ? 0 : 1800, essential: true });
+    }
+    const tick = (now) => {
+      if (!play.running) return;
+      const year = Math.min(YEAR_MAX, YEAR_MIN + Math.floor(((now - play.start) / 1000) * PLAY_RATE));
+      if (year !== state.to || state.from !== YEAR_MIN) setYears(YEAR_MIN, year, true);
+      if (year >= YEAR_MAX) {
+        // kurz stehen lassen, dann ausblenden
+        play.raf = 0;
+        setTimeout(() => { if (play.running) stopPlay(); }, 1400);
+        return;
+      }
+      play.raf = requestAnimationFrame(tick);
+    };
+    play.raf = requestAnimationFrame(tick);
+  }
+
+  function stopPlay() {
+    if (!play.running) return;
+    play.running = false;
+    cancelAnimationFrame(play.raf);
+    renderPlay();
+    writeLink();
+  }
+
+  function renderPlay() {
+    const btn = $('play');
+    btn.setAttribute('aria-pressed', String(play.running));
+    btn.title = play.running ? 'Zeitleiste anhalten' : 'Zeitleiste abspielen: Bauten erscheinen Jahr für Jahr';
+    btn.querySelector('span').textContent = play.running ? 'Anhalten' : 'Abspielen';
+    $('play-year').classList.toggle('is-visible', play.running);
+    if (play.running) renderPlayYear();
+  }
+
+  function renderPlayYear() {
+    const n = state.visible.length;
+    $('play-year-value').textContent = state.to;
+    $('play-year-count').textContent = `${n} ${n === 1 ? 'Bau' : 'Bauten'}`;
+  }
+
+  $('play').addEventListener('click', () => (play.running ? stopPlay() : startPlay()));
 
   /* ---------------- Kartenereignisse ---------------- */
 
@@ -740,6 +1268,7 @@
     canvas.addEventListener('mouseleave', () => { setHover(null); hideClusterTip(); });
 
     map.on('click', async (e) => {
+      stopOrbit(); // ein Klick ohne Ziehen hält auch den laufenden Rundflug an
       if (!map.getLayer('points')) return;
       const { x, y } = e.point;
       const r = mqHover.matches ? 4 : 14; // großzügiger auf Touch-Geräten
@@ -754,15 +1283,25 @@
       if (f.id !== state.pinnedFid) select(byFid.get(f.id));
     });
 
-    // Eingriff während des Flugs: Animation abbrechen, Karte bleibt, wo sie ist
-    const interrupt = () => { if (state.flying) { flightToken++; state.flying = false; } };
+    // Eingriff während Flug oder Rundflug: Animation abbrechen, Karte bleibt, wo sie ist
+    const interrupt = () => {
+      if (state.flying) { flightToken++; state.flying = false; }
+      stopOrbit(false);
+    };
     for (const type of ['mousedown', 'touchstart', 'wheel']) map.on(type, interrupt);
-
-    map.on('movestart', hideClusterTip);
+    map.on('movestart', (e) => {
+      hideClusterTip();
+      // Bewegungen durch Maus, Finger oder Tastatur landen im Link
+      if (e.originalEvent) {
+        interrupt();
+        link.viewSet = true;
+      }
+    });
     map.on('moveend', () => {
       if (state.pinnedFid != null && !cardState.anchor && !state.flying) {
         openCard(byFid.get(state.pinnedFid), cardAnchorFor(), true);
       }
+      if (!state.flying && !orbit.active) writeLink();
     });
     map.on('idle', preloadVisible);
 
@@ -785,12 +1324,28 @@
   /* ---------------- Verzeichnis-Ereignisse ---------------- */
 
   indexEl.addEventListener('click', (e) => {
+    const cityRow = e.target.closest('.city-row');
+    if (cityRow) { toggleCity(cityRow.dataset.city); return; }
     const row = e.target.closest('.row');
     if (row) select(byFid.get(Number(row.dataset.fid)));
   });
 
+  function clearListHover() {
+    if (state.listFid == null) return;
+    state.listFid = null;
+    if (state.pinnedFid == null && cardState.anchor?.row) closeCard();
+  }
+
   indexEl.addEventListener('pointerover', (e) => {
     if (!mqHover.matches) return;
+    // Stadtzeile: alle Bauten der Stadt auf der Karte hervorheben
+    const cityRow = e.target.closest('.city-row');
+    const city = cityRow ? cityRow.dataset.city : null;
+    if (city !== state.hoverCity) {
+      state.hoverCity = city;
+      if (city) clearListHover();
+      syncActive();
+    }
     const row = e.target.closest('.row');
     if (!row) return;
     const fid = Number(row.dataset.fid);
@@ -801,13 +1356,18 @@
   });
 
   const leaveIndex = () => {
-    if (state.listFid == null) return;
-    state.listFid = null;
+    if (state.listFid == null && state.hoverCity == null) return;
+    clearListHover();
+    state.hoverCity = null;
     syncActive();
-    if (state.pinnedFid == null && cardState.anchor?.row) closeCard();
   };
   indexEl.addEventListener('pointerleave', leaveIndex);
   indexEl.addEventListener('scroll', leaveIndex, { passive: true });
+
+  $('view-tabs').addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-view]');
+    if (tab) setView(tab.dataset.view);
+  });
 
   // Chips: ohne Auswahl ist alles sichtbar, ein Klick wählt aus, weitere Klicks ergänzen
   $('arch-chips').addEventListener('click', (e) => {
@@ -819,12 +1379,13 @@
     applyFilter();
   });
 
-  function setYears(from, to) {
+  // fromPlay: Aufruf aus der Zeitleiste, die dabei weiterläuft
+  function setYears(from, to, fromPlay = false) {
+    if (!fromPlay) stopPlay();
     state.from = clamp(Math.min(from, to), YEAR_MIN, YEAR_MAX);
     state.to = clamp(Math.max(from, to), YEAR_MIN, YEAR_MAX);
-    fromEl.value = state.from;
-    toEl.value = state.to;
     applyFilter();
+    if (play.running) renderPlayYear();
   }
 
   fromEl.addEventListener('input', () => {
@@ -873,6 +1434,7 @@
       else if (list.length > 1 && map) {
         const bounds = new maplibregl.LngLatBounds();
         list.forEach((b) => bounds.extend([b.lng, b.lat]));
+        link.viewSet = true;
         map.fitBounds(bounds, { padding: 80, maxZoom: 12, pitch: 0, bearing: 0, duration: reduceMotion ? 0 : 1600 });
       }
     } else if (e.key === 'Escape' && searchEl.value) {
@@ -888,17 +1450,35 @@
   /* ---------------- Steuerung & Tastatur ---------------- */
 
   $('card-close').addEventListener('click', deselect);
-  $('zoom-in').addEventListener('click', () => map?.zoomIn());
-  $('zoom-out').addEventListener('click', () => map?.zoomOut());
+  $('zoom-in').addEventListener('click', () => { link.viewSet = true; map?.zoomIn(); });
+  $('zoom-out').addEventListener('click', () => { link.viewSet = true; map?.zoomOut(); });
   $('reset-view').addEventListener('click', () => {
     if (!map) return;
     deselect();
     flightToken++;
     state.flying = false;
+    link.viewSet = false;
     map.flyTo({ center: WORLD_CENTER, zoom: worldZoom(), pitch: 0, bearing: 0, padding: panelPadding(), duration: reduceMotion ? 0 : 2000, essential: true });
   });
 
+  // Teilen: am Handy das Teilen-Menü, sonst Link kopieren
+  $('share').addEventListener('click', async () => {
+    writeLink(true);
+    const url = location.href;
+    if (navigator.share && !mqHover.matches) {
+      try { await navigator.share({ title: document.title, url }); } catch {}
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('Link zu dieser Ansicht kopiert');
+    } catch {
+      toast('Der Link steht in der Adresszeile');
+    }
+  });
+
   addEventListener('keydown', (e) => {
+    if (lightbox.open) return; // Pfeile und Esc gehören dort der Fotoansicht
     const typing = e.target instanceof HTMLInputElement && e.target.type !== 'range';
     if (e.key === '/' && !typing) {
       e.preventDefault();
@@ -906,6 +1486,7 @@
       searchEl.focus();
     } else if (e.key === 'Escape') {
       if (typing) searchEl.blur();
+      stopPlay();
       deselect();
     }
   });
@@ -950,11 +1531,18 @@
 
   /* ---------------- Start ---------------- */
 
+  initial = readLink();
+  searchEl.value = state.query;
+  renderOrbitButton();
   applyFilter();
   if (mqNarrow.matches) {
     setPanelOpen(false);
     filtersEl.open = false;
+  } else {
+    // auf niedrigen Bildschirmen braucht die Liste den Platz; aktive Filter bleiben sichtbar
+    filtersEl.open = filtersActive() || innerHeight >= 940;
   }
+  if (!navigator.onLine) notice.show('offline', { title: 'Keine Internetverbindung.', text: 'Karte und Fotos laden, sobald du wieder online bist.' });
 
   // Karte erst anlegen, wenn der Container eine Größe hat (z. B. nicht in einem
   // ausgeblendeten Tab), sonst kann MapLibre seine Projektion nicht berechnen.

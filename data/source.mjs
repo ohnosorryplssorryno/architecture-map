@@ -30,6 +30,19 @@ export const architects = [
   { id: 'zha', name: 'Zaha Hadid Architects', short: 'Zaha Hadid', meta: 'London · gegründet 1980', color: '#e9c891', match: 'hadid' },
 ];
 
+// Gebäudetypen, zusammengefasst für den Typfilter. Jeder `type` eines Baus muss
+// hier vorkommen (prüft tools/check-data.mjs).
+export const typeGroups = [
+  { id: 'kultur', label: 'Kultur', types: ['Museum', 'Kultur', 'Konzerthaus', 'Galerie', 'Ausstellung', 'Pavillon', 'Wissenschaft', 'Park'] },
+  { id: 'sakral', label: 'Sakral', types: ['Kirche', 'Kloster', 'Synagoge'] },
+  { id: 'wohnen', label: 'Wohnen', types: ['Wohnen', 'Villa', 'Hotel'] },
+  { id: 'buero', label: 'Büro', types: ['Büro', 'Hochhaus', 'Industrie', 'Messe', 'Forschung', 'Handel'] },
+  { id: 'staat', label: 'Staat', types: ['Regierung', 'Parlament', 'Gericht', 'Verwaltung'] },
+  { id: 'bildung', label: 'Bildung', types: ['Bildung', 'Bibliothek'] },
+  { id: 'verkehr', label: 'Verkehr', types: ['Verkehr', 'Brücke', 'Flughafen', 'Bahnhof'] },
+  { id: 'sport', label: 'Sport', types: ['Sport', 'Stadion'] },
+];
+
 export const buildings = [
   { id: 'vitra-fire-station', architect: 'zha', qid: 'Q25455138', name: 'Vitra Fire Station', city: 'Weil am Rhein', country: 'Deutschland', year: 1993, type: 'Pavillon',
     text: 'Hadids erster realisierter Bau: scharfkantige Betonscheiben, die wie eingefrorene Bewegung wirken. Heute zeigt der Vitra Campus hier Ausstellungen.' },
@@ -399,7 +412,7 @@ export const buildings = [
     text: 'Bürohochhaus mit einem Schleier aus Keramikstäben vor der Glasfassade.' },
   { id: 'california-academy', skipPhotos: ['Thorny (5722407860).jpg','Tagalog Information About Venom.jpg'], architect: 'piano', qid: 'Q965731', name: 'California Academy of Sciences', city: 'San Francisco', country: 'USA', year: 2008, type: 'Wissenschaft',
     text: 'Naturkundemuseum unter einem begrünten Dach mit sanften Hügeln, auf dem rund 1,7 Millionen Pflanzen wachsen.' },
-  { id: 'the-shard', architect: 'piano', qid: 'Q18536', name: 'The Shard', city: 'London', country: 'Großbritannien', year: 2012, type: 'Hochhaus',
+  { id: 'the-shard', skipPhotos: ['Ayuntamiento y Shard, Londres, Inglaterra, 2014-08-11, DD 076.JPG'], architect: 'piano', qid: 'Q18536', name: 'The Shard', city: 'London', country: 'Großbritannien', year: 2012, type: 'Hochhaus',
     text: 'Mit 310 Metern das höchste Gebäude Großbritanniens: gläserne Splitter, die sich zur Spitze hin verjüngen.' },
   { id: 'whitney', skipPhotos: ['Decolonize this place 040519 whitney museum full image.jpg'], architect: 'piano', qid: 'Q639791', name: 'Whitney Museum', city: 'New York', country: 'USA', year: 2015, type: 'Museum',
     text: 'Neues Haus des Whitney am südlichen Ende der High Line, mit gestaffelten Terrassen zum Hudson.' },

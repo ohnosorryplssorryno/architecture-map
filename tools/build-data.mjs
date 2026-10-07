@@ -2,9 +2,11 @@
 //   1. Wikidata: Koordinaten, Standardfoto, Commons-Kategorie, Wikipedia-Link, OSM-IDs
 //   2. OpenStreetMap: Grundriss → Gebäudemitte, Radius und Höhe (Cache: data/footprints.json)
 //   3. Wikimedia Commons: drei Fotos je Bau mit Urheber und Lizenz (Cache: data/photos.json)
+//   4. Datenprüfung (tools/check-data.mjs), bricht bei Fehlern mit Exit-Code 1 ab
 // Aufruf: node tools/build-data.mjs [--refresh-footprints] [--refresh-photos]
 import { readFile, writeFile } from 'node:fs/promises';
-import { architects, buildings } from '../data/source.mjs';
+import { architects, buildings, typeGroups } from '../data/source.mjs';
+import { runChecks } from './check-data.mjs';
 import { findFootprint } from './footprints.mjs';
 import { findPhotos, fileInfo } from './photos.mjs';
 
@@ -14,10 +16,12 @@ const MAX_OFFSET = 300; // Meter: weiter weg liegende Grundrisse gelten als Fehl
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function api(url) {
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const res = await fetch(url, { headers: UA });
     if (res.ok) return res.json();
-    await wait(2000 * (attempt + 1));
+    // Wikidata drosselt schnelle Folgeanfragen (429) und nennt die Wartezeit
+    const retry = Number(res.headers.get('retry-after'));
+    await wait(retry > 0 ? retry * 1000 : 3000 * (attempt + 1));
   }
   throw new Error('Request failed: ' + url);
 }
@@ -151,8 +155,9 @@ out.sort((a, b) => a.year - b.year || a.name.localeCompare(b.name, 'de'));
 const publicArchitects = architects.map(({ match, ...a }) => a);
 const js =
   '// Generiert von tools/build-data.mjs – nicht von Hand bearbeiten.\n' +
-  'window.FORMATLAS_DATA = ' + JSON.stringify({ architects: publicArchitects, buildings: out }) + ';\n';
+  'window.FORMATLAS_DATA = ' + JSON.stringify({ architects: publicArchitects, groups: typeGroups, buildings: out }) + ';\n';
 await writeFile(new URL('../data/buildings.js', import.meta.url), js);
-const few = out.filter((b) => b.ph.length < PHOTOS).map((b) => `${b.id} (${b.ph.length})`);
 console.log(`${out.length} Bauten geschrieben, ${out.filter((b) => !b.r).length} ohne Grundriss.`);
-if (few.length) console.log('Weniger als drei Fotos:', few.join(', '));
+
+// 5. Prüfen
+process.exitCode = await runChecks({ online: true });
