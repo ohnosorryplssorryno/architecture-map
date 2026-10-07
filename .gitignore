@@ -1,0 +1,6 @@
+# Lokale Einstellungen von Claude Code
+.claude/
+
+# Betriebssystem
+.DS_Store
+Thumbs.db

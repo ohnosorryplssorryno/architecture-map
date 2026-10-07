@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Formatlas</title>
+  <meta name="description" content="Die wichtigsten Bauten von elf prägenden Architekten und Büros auf einer interaktiven Weltkarte.">
+  <meta name="theme-color" content="#07090d">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="https://ohnosorryplssorryno.github.io/architecture-map/">
+
+  <!-- Vorschau beim Teilen in sozialen Netzwerken und Messengern -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Formatlas">
+  <meta property="og:locale" content="de_DE">
+  <meta property="og:title" content="Formatlas · Architektur, kartiert">
+  <meta property="og:description" content="216 Bauten von Gaudí bis Zaha Hadid auf einem interaktiven Globus.">
+  <meta property="og:url" content="https://ohnosorryplssorryno.github.io/architecture-map/">
+  <meta property="og:image" content="https://ohnosorryplssorryno.github.io/architecture-map/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Dunkler Globus mit farbigen Punkten für Bauten von elf Architekten">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d1119'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%23e9c891' opacity='.25'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='%23e9c891'/%3E%3C/svg%3E">
+
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+  <link rel="preconnect" href="https://thumb.wikimedia.org">
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/instrument-sans-latin.woff2" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" href="assets/fonts/syne-latin.woff2" crossorigin>
+
+  <!-- MapLibre GL 5.24.0 (BSD-3-Clause), lokal ausgeliefert -->
+  <link rel="stylesheet" href="assets/vendor/maplibre/maplibre-gl.css">
+  <link rel="stylesheet" href="assets/app.css">
+
+  <script src="assets/vendor/maplibre/maplibre-gl.js" defer></script>
+  <script src="data/buildings.js" defer></script>
+  <script src="assets/map-style.js" defer></script>
+  <script src="assets/app.js" defer></script>
+</head>
+<body>
+  <div id="map" class="map" aria-label="Weltkarte mit Bauwerken"></div>
+
+  <aside class="panel" id="panel" aria-label="Verzeichnis">
+    <header class="panel-head">
+      <div class="brand">
+        <h1 class="brand-name">Formatlas</h1>
+        <p class="brand-tag">Architektur, kartiert.</p>
+      </div>
+      <button class="icon-btn panel-toggle" id="panel-toggle" type="button" aria-expanded="true" aria-controls="panel-body" title="Verzeichnis ein- oder ausklappen">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" /></svg>
+      </button>
+    </header>
+
+    <div class="panel-body" id="panel-body">
+      <label class="search" for="search">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.5" /><path d="M13.2 13.2L17 17" /></svg>
+        <input id="search" type="search" placeholder="Bau, Stadt, Land oder Architekt" autocomplete="off" spellcheck="false">
+        <kbd aria-hidden="true">/</kbd>
+      </label>
+
+      <section class="studios" aria-labelledby="arch-label">
+        <div class="filter-head">
+          <span class="filter-label" id="arch-label">Architekten</span>
+          <span class="filter-value" id="arch-count"></span>
+        </div>
+        <div class="chips" id="arch-chips" role="group" aria-labelledby="arch-label"></div>
+      </section>
+
+      <details class="filters" id="filters" open>
+        <summary>
+          <span class="filters-title">Filter</span>
+          <span class="filters-state" id="filters-state"></span>
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8l5 5 5-5" /></svg>
+        </summary>
+        <div class="filter">
+          <div class="filter-head">
+            <span class="filter-label">Baujahr</span>
+            <output class="filter-value" id="year-output" for="year-from year-to"></output>
+          </div>
+          <div class="histogram" id="histogram" role="group" aria-label="Bauten je fünf Jahre, Klick wählt den Zeitraum"></div>
+          <div class="range" id="range">
+            <input type="range" id="year-from" step="1" aria-label="Baujahr ab">
+            <input type="range" id="year-to" step="1" aria-label="Baujahr bis">
+          </div>
+        </div>
+        <div class="filter">
+          <div class="filter-head"><span class="filter-label">Typ</span></div>
+          <div class="chips" id="type-chips" role="group" aria-label="Gebäudetyp"></div>
+        </div>
+      </details>
+
+      <div class="result">
+        <span id="result"></span>
+        <button class="link-btn" id="filter-reset" type="button" hidden>Filter zurücksetzen</button>
+      </div>
+
+      <nav class="index" id="index" aria-label="Bauwerke"></nav>
+
+      <footer class="panel-foot">
+        Fotos: Wikimedia Commons, Urheber im Detail.
+        Karte: <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a>,
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap</a>
+        <span class="legal"><a href="impressum.html">Impressum</a> · <a href="datenschutz.html">Datenschutz</a></span>
+      </footer>
+    </div>
+  </aside>
+
+  <svg class="tether" id="tether" aria-hidden="true">
+    <line id="tether-line" />
+    <circle id="tether-ring" r="9" />
+    <circle id="tether-end" r="2.5" />
+  </svg>
+
+  <article class="card" id="card" hidden aria-live="polite">
+    <div class="card-inner">
+      <figure class="card-media" id="card-media">
+        <img class="card-photo" alt="" decoding="async">
+        <img class="card-photo" alt="" decoding="async">
+        <img class="card-photo" alt="" decoding="async">
+        <div class="card-progress" id="card-progress"></div>
+        <span class="card-year" id="card-year"></span>
+      </figure>
+      <div class="card-body">
+        <p class="card-kicker"><span class="card-dot" id="card-dot"></span><span id="card-kicker"></span></p>
+        <h2 class="card-title" id="card-title"></h2>
+        <p class="card-place" id="card-place"></p>
+        <p class="card-text" id="card-text"></p>
+        <div class="card-actions" id="card-actions">
+          <a id="card-wiki" target="_blank" rel="noopener">Mehr lesen</a>
+          <a id="card-route" target="_blank" rel="noopener">In Google Maps</a>
+        </div>
+        <p class="card-credit" id="card-credit"></p>
+      </div>
+      <button class="icon-btn card-close" id="card-close" type="button" title="Schließen (Esc)">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+      </button>
+    </div>
+    <span class="card-caret" id="card-caret"></span>
+  </article>
+
+  <div class="cluster-tip" id="cluster-tip" hidden></div>
+
+  <div class="controls" aria-label="Kartensteuerung">
+    <button class="icon-btn" id="zoom-in" type="button" title="Hineinzoomen">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>
+    </button>
+    <button class="icon-btn" id="zoom-out" type="button" title="Herauszoomen">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12" /></svg>
+    </button>
+    <button class="icon-btn" id="reset-view" type="button" title="Ganze Welt zeigen">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="6.5" /><path d="M3.5 10h13M10 3.5c-2.2 2.4-2.2 10.6 0 13M10 3.5c2.2 2.4 2.2 10.6 0 13" /></svg>
+    </button>
+  </div>
+
+  <noscript><p class="noscript">Für die Karte wird JavaScript benötigt.</p></noscript>
+</body>
+</html>

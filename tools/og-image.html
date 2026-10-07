@@ -1,0 +1,106 @@
+<!doctype html>
+<!--
+  Vorlage für das Vorschaubild beim Teilen (assets/og-image.png, 1200 × 630).
+  Zeichnet alle Bauten aus data/buildings.js als Punkte auf einen Globus.
+  Neu erzeugen, z. B. mit Microsoft Edge:
+  msedge --headless --hide-scrollbars --window-size=1200,630 --virtual-time-budget=4000 ^
+         --screenshot=assets\og-image.png tools\og-image.html
+-->
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Syne'; font-weight: 500 700; src: url('../assets/fonts/syne-latin.woff2') format('woff2'); }
+  @font-face { font-family: 'Instrument Sans'; font-weight: 400 600; src: url('../assets/fonts/instrument-sans-latin.woff2') format('woff2'); }
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    position: relative;
+    background: radial-gradient(70% 90% at 72% 50%, #111a29 0%, #090c13 55%, #06080c 100%);
+    color: #ece7df;
+    font-family: 'Instrument Sans', sans-serif;
+  }
+  canvas { position: absolute; top: 0; left: 0; }
+  .text { position: absolute; left: 72px; top: 150px; width: 560px; }
+  h1 { margin: 0; font: 700 104px/1 'Syne', sans-serif; letter-spacing: -0.02em; }
+  .tag { margin: 18px 0 0; font-size: 34px; color: #b9bfcb; }
+  .facts { margin: 56px 0 0; font: 600 24px/1.4 'Syne', sans-serif; color: #e9c891; letter-spacing: 0.02em; }
+  .names { margin: 10px 0 0; font-size: 19px; line-height: 1.5; color: #8d95a5; max-width: 520px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1200" height="630"></canvas>
+<div class="text">
+  <h1>Formatlas</h1>
+  <p class="tag">Architektur, kartiert.</p>
+  <p class="facts" id="facts"></p>
+  <p class="names" id="names"></p>
+</div>
+<script src="../data/buildings.js"></script>
+<script>
+  const { architects, buildings } = window.FORMATLAS_DATA;
+  const color = Object.fromEntries(architects.map((a) => [a.id, a.color]));
+  const years = buildings.map((b) => b.year);
+  document.getElementById('facts').textContent =
+    `${buildings.length} Bauten · ${architects.length} Architekten · ${Math.min(...years)}–${Math.max(...years)}`;
+  // geschützte Leerzeichen: Umbruch nur nach dem Trennpunkt, nie innerhalb eines Namens
+  document.getElementById('names').textContent = architects.map((a) => a.short.replace(/ /g, ' ')).join(' · ');
+
+  // Orthografische Projektion, Zentrum über dem Mittelmeer
+  const ctx = document.getElementById('c').getContext('2d');
+  const cx = 935, cy = 330, R = 262, lon0 = 15 * Math.PI / 180, lat0 = 28 * Math.PI / 180;
+  const project = (lon, lat) => {
+    const l = lon * Math.PI / 180 - lon0, p = lat * Math.PI / 180;
+    const cosc = Math.sin(lat0) * Math.sin(p) + Math.cos(lat0) * Math.cos(p) * Math.cos(l);
+    if (cosc < 0) return null; // Rückseite
+    return [cx + R * Math.cos(p) * Math.sin(l), cy - R * (Math.cos(lat0) * Math.sin(p) - Math.sin(lat0) * Math.cos(p) * Math.cos(l))];
+  };
+
+  // Atmosphäre und Kugel
+  const halo = ctx.createRadialGradient(cx, cy, R * 0.9, cx, cy, R * 1.18);
+  halo.addColorStop(0, 'rgba(110, 160, 230, 0.22)');
+  halo.addColorStop(1, 'rgba(110, 160, 230, 0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath(); ctx.arc(cx, cy, R * 1.18, 0, Math.PI * 2); ctx.fill();
+  const sphere = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
+  sphere.addColorStop(0, '#16202f');
+  sphere.addColorStop(1, '#0a0e15');
+  ctx.fillStyle = sphere;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+
+  // Gradnetz
+  ctx.strokeStyle = 'rgba(158, 176, 206, 0.10)';
+  ctx.lineWidth = 1;
+  const line = (pts) => {
+    ctx.beginPath();
+    let open = false;
+    for (const p of pts) {
+      if (!p) { open = false; continue; }
+      if (open) ctx.lineTo(p[0], p[1]); else { ctx.moveTo(p[0], p[1]); open = true; }
+    }
+    ctx.stroke();
+  };
+  for (let lat = -60; lat <= 60; lat += 30) line(Array.from({ length: 181 }, (_, i) => project(-180 + i * 2, lat)));
+  for (let lon = -180; lon < 180; lon += 30) line(Array.from({ length: 91 }, (_, i) => project(lon, -90 + i * 2)));
+
+  // Bauten als leuchtende Punkte
+  for (const b of buildings) {
+    const p = project(b.lng, b.lat);
+    if (!p) continue;
+    const c = color[b.architect];
+    const g = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], 14);
+    g.addColorStop(0, c + '66');
+    g.addColorStop(1, c + '00');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(p[0], p[1], 14, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const b of buildings) {
+    const p = project(b.lng, b.lat);
+    if (!p) continue;
+    ctx.fillStyle = color[b.architect];
+    ctx.strokeStyle = '#06080c';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(p[0], p[1], 4.2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  }
+</script>
+</body>
+</html>

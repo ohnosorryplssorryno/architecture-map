@@ -1,0 +1,176 @@
+FORMATLAS – MÖGLICHE VERBESSERUNGEN UND FEATURES
+Stand: 7. Oktober 2026
+
+Bewertung
+  W = Wichtigkeit         1 = nettes Extra       10 = unverzichtbar
+  E = Einfachheit         1 = sehr aufwendig     10 = in wenigen Stunden erledigt
+  P = Priorität (W × E)   je höher, desto lohnender
+
+Sortiert nach Priorität. Die Bereiche stehen in eckigen Klammern:
+  [Recht]  vor dem Livegang klären      [Inhalt]  Daten, Texte, Fotos
+  [Ux]     Entdecken und Bedienung      [Reich]   Reichweite, Sprache, Zugang
+  [Tech]   Technik und Wartung
+
+
+  P   W   E   Bereich   Maßnahme
+ ---  --  --  --------  -------------------------------------------------------------
+  80  10   8  [Recht]   Impressum und Datenschutzerklärung
+                        In Deutschland für eine öffentliche Seite praktisch Pflicht.
+                        Die Seite lädt Inhalte von Drittanbietern (jsDelivr, OpenFreeMap,
+                        Wikimedia, Google Fonts), dabei werden IP-Adressen übertragen.
+
+  72   8   9  [Recht]   Schriften lokal ausliefern statt über Google Fonts
+                        Vermeidet die Übertragung der IP an Google (LG München, 2022)
+                        und spart eine DNS-Abfrage. woff2-Dateien von Syne und
+                        Instrument Sans ins Projekt legen, @font-face anpassen.
+
+  54   6   9  [Reich]   Vorschau für soziale Netzwerke
+                        Open-Graph- und Twitter-Meta-Tags mit Vorschaubild, damit
+                        geteilte Links eine schöne Karte zeigen.
+
+  48   6   8  [Ux]      Filter und Ansicht in der URL
+                        Architekt, Zeitraum, Typ und Kartenausschnitt im Link speichern,
+                        damit sich gefilterte Ansichten teilen lassen.
+
+  48   6   8  [Tech]    Fehlermeldung, wenn Karte oder Bibliothek nicht laden
+                        Statt eines schwarzen Globus ein klarer Hinweis mit
+                        „Erneut versuchen“, Liste und Suche bleiben nutzbar.
+
+  48   6   8  [Inhalt]  Datenprüfung im Build
+                        Automatische Checks: Koordinaten im richtigen Land,
+                        doppelte Fotos, fehlende Felder, unbekannte Gebäudetypen.
+
+  45   5   9  [Tech]    MapLibre mitliefern statt vom CDN laden
+                        Unabhängig von jsDelivr, ein Drittanbieter weniger im
+                        Datenschutzhinweis.
+
+  42   7   6  [Reich]   Barrierefreiheit
+                        Tastatursteuerung durch die Bauten auf der Karte, Ansagen für
+                        Screenreader bei Auswahl, Kontrastprüfung der Architektenfarben,
+                        Listenansicht ganz ohne Karte.
+
+  42   7   6  [Reich]   Eigene Seite pro Bau für Suchmaschinen
+                        Aus buildings.js statische HTML-Seiten mit Titel, Beschreibung,
+                        Foto und Sitemap erzeugen. Bringt Besucher über Google.
+
+  42   7   6  [Inhalt]  Weitere Architekten
+                        Kandidaten: Tadao Ando, I. M. Pei, BIG/Bjarke Ingels, Santiago
+                        Calatrava, SANAA, Louis Kahn, Alvar Aalto, Jørn Utzon, Kengo Kuma,
+                        Peter Zumthor. Die Datenpipeline steht, Aufwand sind vor allem
+                        Auswahl, Texte und Fotodurchsicht.
+
+  42   6   7  [Ux]      Zeitleiste abspielen
+                        Play-Knopf am Histogramm: Die Bauten erscheinen Jahr für Jahr
+                        auf dem Globus, von Gaudí bis heute.
+
+  42   6   7  [Ux]      „In meiner Nähe“
+                        Standort freigeben, die nächsten Bauten mit Entfernung anzeigen.
+
+  42   6   7  [Ux]      Große Fotoansicht
+                        Klick auf das Foto öffnet eine Galerie in voller Größe,
+                        mit Wischen am Handy.
+
+  42   6   7  [Inhalt]  Architektenprofile
+                        Klick auf einen Architekten öffnet ein Kurzporträt: Lebensdaten,
+                        Haltung, Schlüsselwerke, Pritzker-Preis-Jahr.
+
+  40   8   5  [Inhalt]  Fakten prüfen
+                        Jahreszahlen und Kurztexte der 216 Bauten mit Quellen
+                        gegenprüfen, Quellenlink pro Bau ergänzen.
+
+  40   5   8  [Ux]      Städte-Übersicht
+                        Liste der Städte mit den meisten Bauten (Barcelona, Chicago,
+                        London, Paris …), ein Klick fliegt hin.
+
+  36   4   9  [Ux]      Langsamer Rundflug nach der Landung
+                        Die Kamera kreist nach dem Hinflug langsam um das Gebäude,
+                        endet bei Interaktion, abschaltbar.
+
+  35   7   5  [Reich]   Englische Version
+                        Texte und Oberfläche zweisprachig, Sprachumschalter.
+                        Erweitert die Zielgruppe deutlich.
+
+  35   5   7  [Ux]      Fehlertolerante Suche mit Vorschlägen
+                        Tippfehler, Umschrift (Gaudi/Gaudí) und Autovervollständigung.
+
+  32   4   8  [Ux]      Merkliste
+                        Bauten markieren (im Browser gespeichert), als Liste oder
+                        Google-Maps-Route exportieren.
+
+  30   6   5  [Ux]      Touren pro Stadt
+                        „Ein Tag in Barcelona“: Reihenfolge der Bauten, Flug von Bau
+                        zu Bau, Route für den Spaziergang.
+
+  30   5   6  [Inhalt]  Mehr Angaben pro Bau
+                        Höhe, Status, Auszeichnungen, Partnerbüros, Bauherr –
+                        großteils automatisch aus Wikidata.
+
+  30   5   6  [Tech]    Fotos selbst ausliefern
+                        Thumbnails als WebP/AVIF im eigenen Hosting statt direkt von
+                        Wikimedia. Schneller und unabhängig; Urhebernennung bleibt.
+
+  28   7   4  [Inhalt]  Fotolücken schließen
+                        26 Bauten haben weniger als drei Fotos, Villa Savoye keins
+                        (französische Panoramafreiheit). Wege: eigene Fotos, Flickr mit
+                        CC-Lizenz, Freigaben von Büros oder Museen erfragen.
+
+  28   4   7  [Recht]   Datenschutzfreundliche Statistik
+                        Besucherzahlen ohne Cookies, z. B. GoatCounter (kostenlos)
+                        oder selbst gehostetes Umami.
+
+  28   4   7  [Tech]    Code in Module aufteilen
+                        app.js hat über 900 Zeilen; Karte, Infokarte, Filter und
+                        Flug als eigene Dateien sind leichter zu pflegen.
+
+  28   4   7  [Tech]    Performance-Check bei jeder Änderung
+                        Lighthouse automatisch laufen lassen, Ladezeit-Budget festlegen.
+
+  25   5   5  [Ux]      Wischbares Bottom-Sheet am Handy
+                        Verzeichnis und Infokarte per Wischgeste statt Klappknopf.
+
+  24   4   6  [Reich]   Als App installierbar (PWA)
+                        Startbildschirm-Symbol, Offline-Zwischenspeicher für die
+                        Oberfläche und zuletzt gesehene Fotos.
+
+  24   3   8  [Reich]   Einbett-Modus
+                        Karte per iframe in Blogs einbinden, mit vorgewähltem Filter
+                        (z. B. nur Gaudí).
+
+  20   4   5  [Ux]      Cluster als Tortendiagramme
+                        Zusammengefasste Punkte zeigen anteilig die Architektenfarben.
+
+  20   4   5  [Tech]    Eigene Kartenkacheln (PMTiles)
+                        Unabhängig von OpenFreeMap; als eine Datei z. B. auf
+                        Cloudflare R2 (kostenloses Kontingent).
+
+  20   4   5  [Tech]    Automatischer Datenabgleich
+                        Monatlicher Lauf (GitHub Action) von build-data, Änderungen
+                        als Pull Request zur Durchsicht.
+
+  15   5   3  [Inhalt]  Automatische Fotoprüfung
+                        Bilderkennung (z. B. CLIP lokal) sortiert Innenräume, Personen,
+                        Pläne und Schilder vorab aus und spart die Handdurchsicht.
+
+  15   3   5  [Ux]      Satellitenansicht
+                        Umschalter auf Luftbild; die meisten kostenlosen Quellen
+                        verlangen einen API-Schlüssel oder haben Nutzungsgrenzen.
+
+  12   3   4  [Ux]      Vergleichsmodus
+                        Zwei Bauten nebeneinander, mit Maßstab und Kennzahlen.
+
+  10   5   2  [Ux]      Echte 3D-Modelle markanter Bauten
+                        glTF-Modelle (z. B. Heydar Aliyev Center) über eine eigene
+                        three.js-Ebene. Sehr eindrucksvoll, aber Modelle und Lizenzen
+                        sind die Hürde.
+
+  10   2   5  [Ux]      Heller Modus
+                        Optional; das Design ist bewusst dunkel angelegt.
+
+
+EMPFEHLUNG FÜR DIE NÄCHSTEN SCHRITTE
+  Vor dem Livegang:   Impressum und Datenschutz, Schriften lokal, MapLibre lokal,
+                      Fehlermeldung bei Ladeproblemen, Social-Vorschau.
+  Danach zuerst:      Filter in der URL, Datenprüfung, Städte-Übersicht,
+                      große Fotoansicht, Zeitleiste abspielen.
+  Größere Vorhaben:   Englische Version, Seiten pro Bau für Suchmaschinen,
+                      weitere Architekten.
