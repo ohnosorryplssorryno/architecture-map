@@ -6,12 +6,47 @@ Bewertung
   W = Wichtigkeit         1 = nettes Extra       10 = unverzichtbar
   E = Einfachheit         1 = sehr aufwendig     10 = in wenigen Stunden erledigt
   P = Priorität (W × E)   je höher, desto lohnender
+  *  = neue Idee vom 8. Oktober 2026
 
 Sortiert nach Priorität. Die Bereiche stehen in eckigen Klammern:
-  [Recht]  vor dem Livegang klären      [Inhalt]  Daten, Texte, Fotos
-  [Ux]     Entdecken und Bedienung      [Reich]   Reichweite, Sprache, Zugang
+  [Recht]  rechtliche Fragen             [Inhalt]  Daten, Texte, Fotos
+  [Ux]     Entdecken und Bedienung       [Reich]   Reichweite, Sprache, Zugang
   [Tech]   Technik und Wartung
 
+
+ERLEDIGT (8. Oktober 2026, vierte Runde)
+  [Ux]      Schalter: nahe Punkte zusammenfassen oder alle einzeln zeigen
+  [Ux]      Verzeichnis scrollt als Ganzes, Fußzeile bleibt stehen (auf Full-HD
+            war die Liste auf 31 px zusammengedrückt und nicht mehr bedienbar)
+  ENTFERNT  Zeitleiste abspielen und Karriere-Linie (brachten zu wenig)
+
+ERLEDIGT (8. Oktober 2026, dritte Runde)
+  [Ux]      „Überrasch mich“: zufälliger Bau aus der Auswahl
+  [Ux]      Kino-Modus: Rundgang durch die Auswahl mit Pause, Vor, Zurück
+  [Ux]      Verwandte Bauten in der Infokarte (gleiche Zeit, in der Nähe, gleicher Typ)
+  [Inhalt]  Stilrichtungen als Filter (8 Stile, von Hand gepflegt)
+  [Ux]      Grundriss in der Infokarte, mit Maßstab und Nordpfeil
+  [Ux]      Galerie-Ansicht im Verzeichnis
+  [Reich]   Englische Version: Oberfläche, alle 216 Texte, Länder, Städte, Typen,
+            Ortsnamen der Karte, englische Wikipedia-Artikel
+  [Ux]      Komfort: Ansicht vollständig im Link, Doppel-/Alt-Klick auf Architekten,
+            Straßenansicht (Mapillary), Suche mit Vorschlägen und Tippfehler-Toleranz
+
+ERLEDIGT (8. Oktober 2026, zweite Runde)
+  [Ux]      Histogramm zeigt die Anteile der gewählten Architekten in ihren Farben,
+            mit Tooltip je Zeitraum; Baujahr immer sichtbar, Gebäudetyp einklappbar
+  [Ux]      Niedrige Fenster und Handy: das ganze Verzeichnis scrollt, die Liste
+            schrumpft nicht mehr auf null Zeilen
+  [Tech]    Randfalltest mit Korrekturen:
+              - kaputter Link-Anker (#%E0%A4%A) brachte die App zum Absturz
+              - weggeklickter Hinweis zu Kartenproblemen öffnete sich sofort wieder
+              - Esc und Zeitleiste brechen einen laufenden Flug jetzt ab
+              - derselbe Bau erneut gewählt: kein unnötiges Heraus- und Hineinzoomen
+              - Zoomknöpfe, Verzeichnis und Suche beenden den Rundflug, statt von
+                ihm überschrieben zu werden
+              - angedockte Infokarte verdeckte die Kartenknöpfe
+              - Link wurde mitten im Flug mit Zwischenwerten geschrieben
+              - Versionsnummer an CSS/JS/Daten gegen gemischte Browser-Caches
 
 ERLEDIGT (8. Oktober 2026)
   [Ux]      Filter, gewählter Bau und Kartenausschnitt im Link, Knopf „Teilen“
@@ -29,8 +64,8 @@ ERLEDIGT (7. Oktober 2026, mit dem Livegang auf GitHub Pages)
   [Reich]   Vorschau für soziale Netzwerke (Open Graph, assets/og-image.png)
 
 
-  P   W   E   Bereich   Maßnahme
- ---  --  --  --------  -------------------------------------------------------------
+   P   W   E  Bereich   Maßnahme
+  --  --  --  --------  ------------------------------------------------------------------
   42   7   6  [Reich]   Barrierefreiheit
                         Tastatursteuerung durch die Bauten auf der Karte, Ansagen für
                         Screenreader bei Auswahl, Kontrastprüfung der Architektenfarben,
@@ -43,8 +78,8 @@ ERLEDIGT (7. Oktober 2026, mit dem Livegang auf GitHub Pages)
   42   7   6  [Inhalt]  Weitere Architekten
                         Kandidaten: Tadao Ando, I. M. Pei, BIG/Bjarke Ingels, Santiago
                         Calatrava, SANAA, Louis Kahn, Alvar Aalto, Jørn Utzon, Kengo Kuma,
-                        Peter Zumthor. Die Datenpipeline steht, Aufwand sind vor allem
-                        Auswahl, Texte und Fotodurchsicht.
+                        Peter Zumthor. Die Datenpipeline und die Datenprüfung stehen,
+                        Aufwand sind vor allem Auswahl, Texte und Fotodurchsicht.
 
   42   6   7  [Ux]      „In meiner Nähe“
                         Standort freigeben, die nächsten Bauten mit Entfernung anzeigen.
@@ -54,92 +89,153 @@ ERLEDIGT (7. Oktober 2026, mit dem Livegang auf GitHub Pages)
                         Haltung, Schlüsselwerke, Pritzker-Preis-Jahr.
 
   40   8   5  [Inhalt]  Fakten prüfen
-                        Jahreszahlen und Kurztexte der 216 Bauten mit Quellen
-                        gegenprüfen, Quellenlink pro Bau ergänzen.
+                        Jahreszahlen und Kurztexte der 216 Bauten mit Quellen gegenprüfen,
+                        Quellenlink pro Bau ergänzen.
 
-  35   7   5  [Reich]   Englische Version
-                        Texte und Oberfläche zweisprachig, Sprachumschalter.
-                        Erweitert die Zielgruppe deutlich.
+ *40   5   8  [Reich]   Tastatur: nächster und vorheriger Bau
+                        J/K oder Pfeiltasten springen durch die Liste und fliegen mit.
+                        Teil der Barrierefreiheit, aber schon allein ein Gewinn.
 
-  35   5   7  [Ux]      Fehlertolerante Suche mit Vorschlägen
-                        Tippfehler, Umschrift (Gaudi/Gaudí) und Autovervollständigung.
+ *36   6   6  [Inhalt]  Zahlen-Seite
+                        Kleine Statistik: Bauten pro Jahrzehnt je Architekt als Small
+                        Multiples, Länder, Typen, höchster und ältester Bau. Gut zum
+                        Teilen und für Schulen.
 
-  32   4   8  [Ux]      Merkliste
-                        Bauten markieren (im Browser gespeichert), als Liste oder
+ *36   6   6  [Ux]      Kuratierte Blickwinkel
+                        Pro Bau Drehung und Neigung beim Landen festlegen, so dass die
+                        bekannte Fassade zur Kamera zeigt. Heute landet jeder Bau gleich
+                        (-20°, 60°).
+
+ *36   6   6  [Inhalt]  Wikipedia-Auszug nachladen
+                        Auf Wunsch den ersten Absatz aus Wikipedia in der Infokarte
+                        zeigen. Nur nach Klick laden (Datenschutzerklärung ergänzen).
+
+ *35   7   5  [Ux]      Quiz: Wer hat das gebaut?
+                        Ein Foto, vier Architekten zur Wahl oder einen Punkt auf dem
+                        Globus setzen. Punkte, Serie, Ergebnis als Link teilen. Macht aus
+                        der Karte ein Spiel.
+
+  35   5   7  [Ux]      Merkliste und „Besucht“
+                        Bauten merken oder als besucht abhaken (im Browser gespeichert),
+                        Fortschritt je Architekt („4 von 53 Hadid-Bauten gesehen“), als
                         Google-Maps-Route exportieren.
 
+ *30   6   5  [Inhalt]  Ungebaute und verlorene Bauten
+                        Abgerissene, umgebaute und nie realisierte Entwürfe (Wrights
+                        Imperial Hotel, Hadids Peak in Hongkong) als hohle Marker mit
+                        Status. Erzählt die Geschichte hinter den Werken.
+
   30   6   5  [Ux]      Touren pro Stadt
-                        „Ein Tag in Barcelona“: Reihenfolge der Bauten, Flug von Bau
-                        zu Bau, Route für den Spaziergang.
+                        „Ein Tag in Barcelona“: Reihenfolge der Bauten, Flug von Bau zu
+                        Bau, Route für den Spaziergang. Kann den Kino-Modus nutzen.
+
+ *30   5   6  [Ux]      Höhenvergleich
+                        Gewählte Bauten als Silhouetten nebeneinander, maßstäblich nach
+                        ihrer Höhe aus OSM. Besonders eindrucksvoll bei den Hochhäusern.
+
+ *30   5   6  [Inhalt]  Jahrestag des Tages
+                        „Heute vor 25 Jahren eröffnet“: Eröffnungsdaten aus Wikidata
+                        (P1619), beim Start als kleiner Hinweis. Gibt einen Grund,
+                        wiederzukommen.
 
   30   5   6  [Inhalt]  Mehr Angaben pro Bau
-                        Höhe, Status, Auszeichnungen, Partnerbüros, Bauherr –
-                        großteils automatisch aus Wikidata.
+                        Höhe, Status, Auszeichnungen, Partnerbüros, Bauherr, großteils
+                        automatisch aus Wikidata.
 
   30   5   6  [Tech]    Fotos selbst ausliefern
                         Thumbnails als WebP/AVIF im eigenen Hosting statt direkt von
-                        Wikimedia. Schneller und unabhängig; Urhebernennung bleibt.
+                        Wikimedia. Schneller und unabhängig (die große Fotoansicht lädt
+                        bei Wikimedia teils 2–3 Sekunden); Urhebernennung bleibt.
 
   28   7   4  [Inhalt]  Fotolücken schließen
-                        26 Bauten haben weniger als drei Fotos, Villa Savoye keins
+                        27 Bauten haben weniger als drei Fotos, Villa Savoye keins
                         (französische Panoramafreiheit). Wege: eigene Fotos, Flickr mit
                         CC-Lizenz, Freigaben von Büros oder Museen erfragen.
 
   28   4   7  [Recht]   Datenschutzfreundliche Statistik
-                        Besucherzahlen ohne Cookies, z. B. GoatCounter (kostenlos)
-                        oder selbst gehostetes Umami.
+                        Besucherzahlen ohne Cookies, z. B. GoatCounter (kostenlos) oder
+                        selbst gehostetes Umami.
 
   28   4   7  [Tech]    Code in Module aufteilen
-                        app.js hat über 900 Zeilen; Karte, Infokarte, Filter und
-                        Flug als eigene Dateien sind leichter zu pflegen.
+                        app.js hat inzwischen über 1500 Zeilen; Karte, Infokarte,
+                        Fotoansicht, Filter, Flug und Link als eigene Dateien sind
+                        leichter zu pflegen.
 
-  28   4   7  [Tech]    Performance-Check bei jeder Änderung
-                        Lighthouse automatisch laufen lassen, Ladezeit-Budget festlegen.
+  28   4   7  [Tech]    Automatische Tests
+                        Die Randfälle aus dem Test vom 8. Oktober (kaputte Links, Flug
+                        abbrechen, Rundflug und Zoomknöpfe, Bau ohne Foto) als Browser-
+                        Tests (Playwright) in der GitHub Action, dazu Lighthouse mit
+                        Ladezeit-Budget.
+
+ *25   5   5  [Reich]   Ansicht als Bild teilen
+                        Postkarte aus Kartenausschnitt, Foto und Titel als PNG erzeugen,
+                        für Instagram und Messenger.
 
   25   5   5  [Ux]      Wischbares Bottom-Sheet am Handy
                         Verzeichnis und Infokarte per Wischgeste statt Klappknopf.
+
+ *24   4   6  [Ux]      Licht nach Sonnenstand
+                        Die 3D-Gebäude nach dem echten Sonnenstand am Ort beleuchten, mit
+                        Tageszeit-Regler. Ohne echte Schatten, daher eher Stimmung als
+                        Information.
 
   24   4   6  [Reich]   Als App installierbar (PWA)
                         Startbildschirm-Symbol, Offline-Zwischenspeicher für die
                         Oberfläche und zuletzt gesehene Fotos.
 
   24   3   8  [Reich]   Einbett-Modus
-                        Karte per iframe in Blogs einbinden, mit vorgewähltem Filter
-                        (z. B. nur Gaudí).
+                        Karte per iframe in Blogs einbinden, mit vorgewähltem Filter (z.
+                        B. nur Gaudí). Die Link-Parameter sind schon da, es fehlt eine
+                        schlanke Ansicht ohne Verzeichnis.
+
+ *20   5   4  [Inhalt]  Netz der Einflüsse
+                        Wer lernte bei wem, wer arbeitete mit wem (Koolhaas, Hadid, OMA;
+                        Mies und Le Corbusier bei Behrens). Als Linien zwischen den
+                        Architekten, kuratiert.
 
   20   4   5  [Ux]      Cluster als Tortendiagramme
-                        Zusammengefasste Punkte zeigen anteilig die Architektenfarben.
+                        Zusammengefasste Punkte zeigen anteilig die Architektenfarben,
+                        passend zum Histogramm.
 
   20   4   5  [Tech]    Eigene Kartenkacheln (PMTiles)
-                        Unabhängig von OpenFreeMap; als eine Datei z. B. auf
-                        Cloudflare R2 (kostenloses Kontingent).
+                        Unabhängig von OpenFreeMap; als eine Datei z. B. auf Cloudflare R2
+                        (kostenloses Kontingent).
 
   20   4   5  [Tech]    Automatischer Datenabgleich
-                        Monatlicher Lauf (GitHub Action) von build-data, Änderungen
-                        als Pull Request zur Durchsicht.
+                        Monatlicher Lauf (GitHub Action) von build-data, Änderungen als
+                        Pull Request zur Durchsicht.
 
   15   5   3  [Inhalt]  Automatische Fotoprüfung
                         Bilderkennung (z. B. CLIP lokal) sortiert Innenräume, Personen,
                         Pläne und Schilder vorab aus und spart die Handdurchsicht.
 
   15   3   5  [Ux]      Satellitenansicht
-                        Umschalter auf Luftbild; die meisten kostenlosen Quellen
-                        verlangen einen API-Schlüssel oder haben Nutzungsgrenzen.
+                        Umschalter auf Luftbild; die meisten kostenlosen Quellen verlangen
+                        einen API-Schlüssel oder haben Nutzungsgrenzen.
 
   12   3   4  [Ux]      Vergleichsmodus
                         Zwei Bauten nebeneinander, mit Maßstab und Kennzahlen.
 
   10   5   2  [Ux]      Echte 3D-Modelle markanter Bauten
                         glTF-Modelle (z. B. Heydar Aliyev Center) über eine eigene
-                        three.js-Ebene. Sehr eindrucksvoll, aber Modelle und Lizenzen
-                        sind die Hürde.
+                        three.js-Ebene. Sehr eindrucksvoll, aber Modelle und Lizenzen sind
+                        die Hürde.
 
   10   2   5  [Ux]      Heller Modus
                         Optional; das Design ist bewusst dunkel angelegt.
 
+WAS DIE APP AM MEISTEN INTERESSANTER MACHEN WÜRDE
+  Die Karte zeigt heute vor allem, WO gebaut wurde. Spannender wird sie, wenn sie
+  Geschichten erzählt und zum Weiterklicken verführt:
+  1. Bewegung statt Liste: der Kino-Modus macht aus Daten eine Reise.
+  2. Zusammenhänge: verwandte Bauten, Stilrichtungen und das Netz der Einflüsse zeigen,
+     wie die Werke aufeinander antworten.
+  3. Mitmachen: Quiz, „Überrasch mich“ und „Besucht“ geben einen Grund, wiederzukommen.
+  4. Details, die nur eine Architekturkarte hat: Grundriss, Höhenvergleich, Blickwinkel.
 
 EMPFEHLUNG FÜR DIE NÄCHSTEN SCHRITTE
-  Als Nächstes:       Impressum-Platzhalter ausfüllen, Barrierefreiheit,
-                      Architektenprofile, „In meiner Nähe“, Fakten prüfen.
-  Größere Vorhaben:   Englische Version, Seiten pro Bau für Suchmaschinen,
-                      weitere Architekten.
+  Sofort:             Impressum-Platzhalter ausfüllen.
+  Als Nächstes:       Tastatur J/K und Barrierefreiheit, Architektenprofile,
+                      kuratierte Blickwinkel, „In meiner Nähe“.
+  Größere Vorhaben:   Seiten pro Bau für Suchmaschinen (jetzt zweisprachig möglich),
+                      weitere Architekten, Quiz, Zahlen-Seite.

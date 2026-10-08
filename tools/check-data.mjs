@@ -46,11 +46,17 @@ export function checkData({ data, source, facts }) {
   const archIds = new Set();
   for (const a of data.architects) {
     if (archIds.has(a.id)) err(a.id, 'Architekten-ID doppelt');
+    if (data.en && !a.en?.meta) err(a.id, 'englische Kurzangabe (meta) fehlt in data/i18n-en.mjs');
     archIds.add(a.id);
     for (const f of ['id', 'name', 'short', 'meta', 'color']) if (!a[f]) err(a.id || '?', `Architekt ohne „${f}“`);
     if (a.color && !/^#[0-9a-f]{6}$/i.test(a.color)) err(a.id, `Farbe „${a.color}“ ist kein sechsstelliger Hex-Wert`);
   }
   const archById = new Map(data.architects.map((a) => [a.id, a]));
+
+  // Stilrichtungen
+  const knownStyles = new Set((data.styles || []).map((st) => st.id));
+  for (const st of data.styles || []) if (!st.label || !st.en) err(st.id, 'Stilrichtung ohne deutschen oder englischen Namen');
+  for (const a of data.architects) if (data.styles && !knownStyles.has(a.style)) err(a.id, `unbekannter Grundstil „${a.style}“`);
 
   // Gebäudetypen
   const knownTypes = new Map();
@@ -74,6 +80,14 @@ export function checkData({ data, source, facts }) {
     ids.add(b.id);
     if (b.architect && !archById.has(b.architect)) err(id, `unbekannter Architekt „${b.architect}“`);
     if (b.type && !knownTypes.has(b.type)) err(id, `unbekannter Typ „${b.type}“, in data/source.mjs unter typeGroups ergänzen`);
+    if (data.styles && !knownStyles.has(b.style)) err(id, `unbekannte Stilrichtung „${b.style}“, in data/source.mjs unter styles ergänzen`);
+
+    // Englische Fassung
+    if (data.en) {
+      if (!b.en?.text) err(id, 'englischer Text fehlt (data/i18n-en.mjs)');
+      if (b.country && !data.en.countries[b.country]) err(id, `Land „${b.country}“ fehlt in data/i18n-en.mjs (countries)`);
+      if (b.type && !data.en.types[b.type]) err(id, `Typ „${b.type}“ fehlt in data/i18n-en.mjs (types)`);
+    }
 
     if (!Number.isInteger(b.year) || b.year < 1850 || b.year > year + 10) err(id, `Baujahr „${b.year}“ unplausibel`);
     else {
@@ -147,6 +161,7 @@ export function checkData({ data, source, facts }) {
       const b = out.get(s.id);
       if (!b) { err(s.id, 'fehlt in data/buildings.js, node tools/build-data.mjs ausführen'); continue; }
       const changed = ['architect', 'name', 'city', 'country', 'year', 'type', 'text'].filter((f) => s[f] !== b[f]);
+      if (s.style && s.style !== b.style) changed.push('style');
       if (changed.length) err(s.id, `data/buildings.js ist veraltet (${changed.join(', ')}), node tools/build-data.mjs ausführen`);
     }
     const inSource = new Set(source.buildings.map((s) => s.id));

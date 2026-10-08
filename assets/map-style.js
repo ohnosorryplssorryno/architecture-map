@@ -1,6 +1,9 @@
 // Eigener Dunkel-Stil für die OpenMapTiles-Vektordaten von OpenFreeMap.
 // Bewusst schlank: nur die Ebenen, die zur Orientierung nötig sind.
-window.formatlasStyle = function formatlasStyle() {
+// Beschriftung in der Sprache der Oberfläche, sonst lateinische Umschrift, sonst Ortsname
+window.formatlasLabel = (lang) => ['coalesce', ['get', `name:${lang === 'en' ? 'en' : 'de'}`], ['get', 'name:latin'], ['get', 'name']];
+
+window.formatlasStyle = function formatlasStyle(lang = 'de') {
   const c = {
     land: '#0d1119',
     water: '#05070b',
@@ -19,7 +22,7 @@ window.formatlasStyle = function formatlasStyle() {
     halo: '#090c12',
   };
 
-  const name = ['coalesce', ['get', 'name:de'], ['get', 'name:latin'], ['get', 'name']];
+  const name = window.formatlasLabel(lang);
   const src = { source: 'omt' };
   const poly = ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false];
   const zoomWidth = (pairs) => ['interpolate', ['exponential', 1.5], ['zoom'], ...pairs];

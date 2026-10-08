@@ -2,10 +2,12 @@
 //   1. Wikidata: Koordinaten, Standardfoto, Commons-Kategorie, Wikipedia-Link, OSM-IDs
 //   2. OpenStreetMap: Grundriss → Gebäudemitte, Radius und Höhe (Cache: data/footprints.json)
 //   3. Wikimedia Commons: drei Fotos je Bau mit Urheber und Lizenz (Cache: data/photos.json)
+//   Dazu: Stilrichtung, englische Fassung (data/i18n-en.mjs) und der Grundriss als kleiner SVG-Pfad
 //   4. Datenprüfung (tools/check-data.mjs), bricht bei Fehlern mit Exit-Code 1 ab
 // Aufruf: node tools/build-data.mjs [--refresh-footprints] [--refresh-photos]
 import { readFile, writeFile } from 'node:fs/promises';
-import { architects, buildings, typeGroups } from '../data/source.mjs';
+import { architects, buildings, typeGroups, styles } from '../data/source.mjs';
+import * as en from '../data/i18n-en.mjs';
 import { runChecks } from './check-data.mjs';
 import { findFootprint } from './footprints.mjs';
 import { findPhotos, fileInfo } from './photos.mjs';
@@ -31,6 +33,48 @@ const meters = ([lat1, lng1], [lat2, lng2]) => {
   const k = Math.PI / 180;
   return Math.hypot((lng2 - lng1) * k * Math.cos(lat1 * k), (lat2 - lat1) * k) * 6371008.8;
 };
+// Douglas-Peucker: entfernt Punkte, die weniger als tol von der Verbindungslinie abweichen
+function simplify(points, tol) {
+  if (points.length < 4) return points;
+  const [ax, ay] = points[0], [bx, by] = points[points.length - 1];
+  const len = Math.hypot(bx - ax, by - ay) || 1;
+  let max = 0, idx = 0;
+  for (let i = 1; i < points.length - 1; i++) {
+    const [px, py] = points[i];
+    const d = len > 1e-9 && (bx !== ax || by !== ay)
+      ? Math.abs((bx - ax) * (ay - py) - (ax - px) * (by - ay)) / len
+      : Math.hypot(px - ax, py - ay);
+    if (d > max) { max = d; idx = i; }
+  }
+  if (max <= tol) return [points[0], points[points.length - 1]];
+  return [...simplify(points.slice(0, idx + 1), tol).slice(0, -1), ...simplify(points.slice(idx), tol)];
+}
+
+// Grundriss als SVG-Pfad in Metern um die Gebäudemitte, Norden oben: [Pfad, [x, y, Breite, Höhe]]
+function planOf(rings, [lng0, lat0]) {
+  const k = Math.PI / 180, mx = 111320 * Math.cos(lat0 * k), my = 110540;
+  let shapes = rings.map((ring) => ring.map(([lng, lat]) => [(lng - lng0) * mx, -(lat - lat0) * my]));
+  const area = (r) => Math.abs(r.reduce((sum, p, i) => { const q = r[(i + 1) % r.length]; return sum + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+  const biggest = Math.max(...shapes.map(area));
+  shapes = shapes.filter((r) => area(r) >= biggest * 0.005); // Kleinkram (Treppenhäuser, Kioske) weglassen
+  const xs = shapes.flat().map((p) => p[0]), ys = shapes.flat().map((p) => p[1]);
+  const box = [Math.min(...xs), Math.min(...ys), Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
+  const size = Math.max(box[2], box[3]);
+  let tol = size / 200, out;
+  do {
+    // Ringe vereinfachen; geschlossene Ringe an der gegenüberliegenden Ecke teilen, damit beide Hälften erhalten bleiben
+    out = shapes.map((r) => {
+      const half = r.length >> 1;
+      return [...simplify(r.slice(0, half + 1), tol).slice(0, -1), ...simplify(r.slice(half), tol)];
+    }).filter((r) => r.length >= 4);
+    tol *= 1.4;
+  } while (out.reduce((n, r) => n + r.length, 0) > 260);
+  const dec = size < 80 ? 10 : 1;
+  const f = (v) => Math.round(v * dec) / dec;
+  const d = out.map((r) => 'M' + r.slice(0, -1).map(([x, y]) => `${f(x)} ${f(y)}`).join(' ') + 'Z').join('');
+  return [d, box.map(f)];
+}
+
 async function loadJson(name, refresh) {
   try { if (!refresh) return JSON.parse(await readFile(new URL(`../data/${name}`, import.meta.url), 'utf8')); } catch {}
   return {};
@@ -60,6 +104,7 @@ for (const group of chunks(buildings.filter((b) => b.qid).map((b) => b.qid), 50)
       image: get('P18'),
       category: get('P373'),
       wiki: e.sitelinks?.dewiki?.url || e.sitelinks?.enwiki?.url || null,
+      wikiEn: e.sitelinks?.enwiki?.url || null,
       osm: [...all('P10689').map((v) => 'w' + v), ...all('P402').map((v) => 'r' + v)],
     };
   }
@@ -139,23 +184,30 @@ for (const b of buildings) {
   const photos = [main, ...(photoCache[b.id]?.list || [])].filter(Boolean).slice(0, PHOTOS);
   if (!photos.length) console.warn('Kein Foto:', b.id);
 
-  const { qid, image, coord: _c, osm: _o, photos: _p, skipPhotos: _s, ...rest } = b;
+  const { qid, image, coord: _c, osm: _o, photos: _p, skipPhotos: _s, style, ...rest } = b;
+  const english = en.buildings[b.id];
   out.push({
     ...rest,
+    style: style || archById.get(b.architect).style,
     lat: round(coord[0]),
     lng: round(coord[1]),
-    ...(shape ? { r: shape.r, h: Math.max(...shape.fh.map(([h]) => h)) } : {}),
+    ...(shape ? { r: shape.r, h: Math.max(...shape.fh.map(([h]) => h)), pl: planOf(shape.fp, shape.c) } : {}),
+    ...(english ? { en: english } : {}),
     // Foto: [Commons-Pfad, Urheber, Lizenz]
     ph: photos.map((p) => [p.path, p.author, p.license]),
     wiki: wd[qid]?.wiki || (qid ? `https://www.wikidata.org/wiki/${qid}` : null),
+    // englischer Artikel, nur wenn er sich vom deutschen unterscheidet
+    ...(wd[qid]?.wikiEn && wd[qid].wikiEn !== wd[qid].wiki ? { wikiEn: wd[qid].wikiEn } : {}),
   });
 }
 out.sort((a, b) => a.year - b.year || a.name.localeCompare(b.name, 'de'));
 
-const publicArchitects = architects.map(({ match, ...a }) => a);
+const publicArchitects = architects.map(({ match, ...a }) => ({ ...a, en: en.architects[a.id] }));
+// Englische Wörterbücher für Länder, Städte und Typen (Bauten tragen ihre Fassung selbst)
+const english = { countries: en.countries, cities: en.cities, types: en.types };
 const js =
   '// Generiert von tools/build-data.mjs – nicht von Hand bearbeiten.\n' +
-  'window.FORMATLAS_DATA = ' + JSON.stringify({ architects: publicArchitects, groups: typeGroups, buildings: out }) + ';\n';
+  'window.FORMATLAS_DATA = ' + JSON.stringify({ architects: publicArchitects, groups: typeGroups, styles: styles.map(({ note, ...st }) => st), en: english, buildings: out }) + ';\n';
 await writeFile(new URL('../data/buildings.js', import.meta.url), js);
 console.log(`${out.length} Bauten geschrieben, ${out.filter((b) => !b.r).length} ohne Grundriss.`);
 
